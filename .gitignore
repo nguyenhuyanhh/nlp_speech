@@ -1,0 +1,10 @@
+# Python specifics
+__pycache__/
+*.py[cod]
+
+# Data
+data/
+*.log
+
+# VSCode
+.vscode/
