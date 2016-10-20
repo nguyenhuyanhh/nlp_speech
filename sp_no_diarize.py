@@ -24,7 +24,7 @@ def convert(file):
     return path_out
 
 
-def recognize_file(file):
+def recognize_sync(file):
     path = os.path.join(data_dir, file)
     with open(path, 'rb') as f:
         content = base64.b64encode(f.read())
@@ -43,4 +43,4 @@ def recognize_file(file):
     response = request.execute()
     return response
 
-print(recognize_file('test-resampled.wav'))
+print(recognize_sync('test-resampled.wav'))
