@@ -1,2 +1,8 @@
+# apiv1
 google-api-python-client
+
+# apiv2
+google-cloud
+
+# convert
 sox
