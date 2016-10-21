@@ -41,7 +41,7 @@ def recognize_sync(file):
     }
     request = speech.syncrecognize(body=request_body)
     response = request.execute()
-    return response
+    return response['results'][0]['alternatives'][0]['transcript']
 
 
 def recognize_async(file):
@@ -62,11 +62,10 @@ def recognize_async(file):
     request = speech.asyncrecognize(body=request_body)
     response = request.execute()
     operation_id = response['name']
-    print(operation_id)
-    for retries in range(10):
+    for retries in range(100):
         operation = service.operations().get(name=operation_id).execute()
         if ('done' in operation.keys()):
             async_response = operation['response']
-            return async_response
+            return async_response['results'][0]['alternatives'][0]['transcript']
         else:
-            time.sleep(10)
+            time.sleep(30)
