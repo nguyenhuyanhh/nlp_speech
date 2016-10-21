@@ -18,8 +18,7 @@ def convert(file):
     path_in = os.path.join(data_dir, file)
     path_out = os.path.join(data_dir, filename + '-resampled.wav')
     tfm = sox.Transformer()
-    tfm.channels(1)
-    tfm.rate(16000)
+    tfm.convert(samplerate=16000, n_channels=1, bitdepth=16)
     tfm.build(path_in, path_out)
     return path_out
 
@@ -42,5 +41,3 @@ def recognize_sync(file):
     request = speech.syncrecognize(body=request_body)
     response = request.execute()
     return response
-
-print(recognize_sync('test-resampled.wav'))
