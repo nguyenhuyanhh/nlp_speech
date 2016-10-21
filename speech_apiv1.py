@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import time
 
 from googleapiclient.discovery import build
 import sox
@@ -41,3 +42,31 @@ def recognize_sync(file):
     request = speech.syncrecognize(body=request_body)
     response = request.execute()
     return response
+
+
+def recognize_async(file):
+    path = os.path.join(data_dir, file)
+    with open(path, 'rb') as f:
+        content = base64.b64encode(f.read())
+        content_string = content.decode('utf-8')
+    request_body = {
+        "audio": {
+            "content": content_string
+        },
+        "config": {
+            "languageCode": "en-US",
+            "encoding": "LINEAR16",
+            "sampleRate": 16000
+        },
+    }
+    request = speech.asyncrecognize(body=request_body)
+    response = request.execute()
+    operation_id = response['name']
+    print(operation_id)
+    for retries in range(10):
+        operation = service.operations().get(name=operation_id).execute()
+        if ('done' in operation.keys()):
+            async_response = operation['response']
+            return async_response
+        else:
+            time.sleep(10)
