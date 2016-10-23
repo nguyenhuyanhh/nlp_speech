@@ -1,5 +1,5 @@
 # nlp_speech
-This library performs speech file conversion and speech recognition using Google Cloud Speech API.
+This library performs speech file conversion using [SoX](http://sox.sourceforge.net), and speech recognition using Google Cloud Speech API.
 
 ## Requirements
 
@@ -8,6 +8,7 @@ A Linux system and Python (both 2.7 and 3.5 works). This library is developed fo
 ## Setup
 
 1. Clone the project
+1. Install SoX: `$ sudo apt-get install sox`
 1. Install Python dependencies: `$ sudo pip install -r requirements.txt`
 1. Load raw data into `/data`
 1. Run the main program: `$ python ./main.py`
@@ -35,6 +36,6 @@ data/
 
 ## To-dos
 
-1. Implement multi-processing
+1. Implement multi-processing and async result calls
 1. If API library v2 is available, move code to that library instead for cleaner code (see `speech_apiv2.py` for sample)
 1. Diarization?
