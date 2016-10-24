@@ -37,5 +37,5 @@ data/
 ## To-dos
 
 1. Implement multi-processing and async result calls
-1. If API library v2 is available, move code to that library instead for cleaner code (see `speech_apiv2.py` for sample)
+1. If google-cloud supports Cloud Speech API, move code to that library instead of google-api-python-client
 1. Diarization?
