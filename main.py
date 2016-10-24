@@ -1,5 +1,5 @@
-import speech
+from data import flat_data
+from speech import async_workflow
 
-id_list = speech.list_id()
-for file_id in id_list:
-    speech.async_pipeline(file_id)
+# flat_data('/home/nhanh/test')
+# async_workflow()

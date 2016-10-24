@@ -1,6 +1,8 @@
 import base64
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from multiprocessing import cpu_count
 
 from googleapiclient.discovery import build
 from oauth2client.service_account import ServiceAccountCredentials
@@ -129,19 +131,12 @@ class Speech():
                 time.sleep(self.async_retry_interval)
 
 
-def list_id():
-    """
-    Return a list of file_ids to process (basically the subfolders of data_dir).
-    """
-    return [file_id for file_id in os.listdir(data_dir)
-            if os.path.isdir(os.path.join(data_dir, file_id))]
-
-
 def sync_pipeline(file_id):
     """Synchronous processing pipeline for file_id."""
     s = Speech(file_id)
     for method in [s.convert, s.recognize_sync]:
         method()
+    return file_id
 
 
 def async_pipeline(file_id):
@@ -149,3 +144,17 @@ def async_pipeline(file_id):
     s = Speech(file_id)
     for method in [s.convert, s.upload, s.recognize_async]:
         method()
+    return file_id
+
+
+def async_workflow():
+    future_list = list()
+    id_list = [file_id for file_id in os.listdir(
+        data_dir) if os.path.isdir(os.path.join(data_dir, file_id))]
+    max_workers = cpu_count() * 5
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for file_id in id_list:
+            future_list.append(executor.submit(async_pipeline, file_id))
+    for future in as_completed(future_list):
+        print(future.result())
