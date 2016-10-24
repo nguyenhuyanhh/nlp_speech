@@ -148,6 +148,7 @@ def async_pipeline(file_id):
 
 
 def async_workflow():
+    """Asynchronous multi-processing workflow."""
     future_list = list()
     id_list = [file_id for file_id in os.listdir(
         data_dir) if os.path.isdir(os.path.join(data_dir, file_id))]
