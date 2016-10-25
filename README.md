@@ -8,7 +8,7 @@ A Linux system and Python 3. This library is developed for Python 3.5.2 on Lubun
 ## Setup
 
 1. Clone the project
-1. Install SoX: `$ sudo apt-get install sox`
+1. Install SoX and the support library: `$ sudo apt-get install sox libsox-fmt-all`
 1. Install Python dependencies: `$ sudo pip3 install -r requirements.txt`
 1. Run the main program: `$ python3 main.py`
 
