@@ -1,6 +1,7 @@
 import base64
 import os
 import time
+import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from multiprocessing import cpu_count
 
@@ -8,24 +9,27 @@ from googleapiclient.discovery import build
 from oauth2client.service_account import ServiceAccountCredentials
 import sox
 
-# init path
+# initialize paths
 cur_dir = os.path.dirname(os.path.realpath(__name__))
 data_dir = os.path.join(cur_dir, 'data/')
 
-# init credentials
+# initialize credentials
 API_KEY = 'AIzaSyC22qOuouVqsraoV6KzCHNAzdf3gWisOwc'
 key_path = os.path.join(cur_dir, 'key.json')
 scopes = ['https://www.googleapis.com/auth/cloud-platform']
 credentials = ServiceAccountCredentials.from_json_keyfile_name(
     key_path, scopes=scopes)
 
-# init google apis
+# initialize google apis
 speech_service = build('speech', 'v1beta1', credentials=credentials)
 speech = speech_service.speech()
 operations = speech_service.operations()
 storage_service = build('storage', 'v1', credentials=credentials)
 objects = storage_service.objects()
 bucket_name = 'speech-recognition-146903.appspot.com'
+
+# initialize logger
+logger = logging.getLogger(__name__)
 
 
 class Speech():
@@ -76,61 +80,77 @@ class Speech():
         For files shorter than one minute.
         Synchronously recognize file_id. Return transcript of resampled file.
         """
-        # construct json request
-        with open(self.resampled_file, 'rb') as f:
-            content = base64.b64encode(f.read()).decode('utf-8')
-        request_body = {
-            "audio": {
-                "content": content
-            },
-            "config": {
-                "languageCode": "en-US",
-                "encoding": "LINEAR16",
-                "sampleRate": 16000
-            },
-        }
-        sync_response = speech.syncrecognize(body=request_body).execute()
+        # check for length
+        if (os.path.getsize(self.resampled_file) >= 1920000):
+            logger.info(
+                '%s: File longer than 1 minute. Will not recognize.', self.file_id)
+            return None
+        else:
+            # construct json request
+            with open(self.resampled_file, 'rb') as f:
+                content = base64.b64encode(f.read()).decode('utf-8')
+            request_body = {
+                "audio": {
+                    "content": content
+                },
+                "config": {
+                    "languageCode": "en-US",
+                    "encoding": "LINEAR16",
+                    "sampleRate": 16000
+                },
+            }
+            sync_response = speech.syncrecognize(body=request_body).execute()
 
-        # write back transcript
-        result_list = sync_response['results']
-        with open(self.googleapi_trans_sync, 'w') as w:
-            for item in result_list:
-                w.write(item['alternatives'][0]['transcript'] + '\n')
+            # write back transcript if present
+            if ('results' not in sync_response.keys()):
+                logger.info(
+                    '%s: No results. Transcript not returned.', self.file_id)
+            else:
+                result_list = sync_response['results']
+                with open(self.googleapi_trans_sync, 'w') as w:
+                    for item in result_list:
+                        w.write(item['alternatives'][0]['transcript'] + '\n')
+                logger.info('%s: Transcript written.', self.file_id)
 
     def recognize_async(self):
         """
         For files longer than one minute and up to 80 minutes.
         Asynchronously recognize file_id. Return transcript of resampled file.
         """
-        # construct json request
-        uri = 'gs://{}/{}'.format(bucket_name, self.file_id)
-        request_body = {
-            "audio": {
-                "uri": uri
-            },
-            "config": {
-                "languageCode": "en-US",
-                "encoding": "LINEAR16",
-                "sampleRate": 16000
-            },
-        }
-        async_response = speech.asyncrecognize(body=request_body).execute()
-        operation_id = async_response['name']
+        # check for length
+        if (os.path.getsize(self.resampled_file) >= 153600000):
+            return None
+        else:
+            # construct json request
+            uri = 'gs://{}/{}'.format(bucket_name, self.file_id)
+            request_body = {
+                "audio": {
+                    "uri": uri
+                },
+                "config": {
+                    "languageCode": "en-US",
+                    "encoding": "LINEAR16",
+                    "sampleRate": 16000
+                },
+            }
+            async_response = speech.asyncrecognize(body=request_body).execute()
+            operation_id = async_response['name']
 
-        # periodically poll for response up until a limit
-        # if there is, write back to file
-        time.sleep(self.get_initial_wait())
-        for retries in range(self.async_max_retries):
-            operation = operations.get(name=operation_id).execute()
-            if ('done' in operation.keys()):
-                async_response = operation['response']
-                result_list = async_response['results']
-                with open(self.googleapi_trans_async, 'w') as w:
-                    for item in result_list:
-                        w.write(item['alternatives'][0]['transcript'] + '\n')
-                return
-            else:
-                time.sleep(self.async_retry_interval)
+            # periodically poll for response up until a limit
+            # if there is, write back to file
+            time.sleep(self.get_initial_wait())
+            for retries in range(self.async_max_retries):
+                operation = operations.get(name=operation_id).execute()
+                if ('done' in operation.keys() & operation['done'] == True):
+                    async_response = operation['response']
+                    result_list = async_response['results']
+                    with open(self.googleapi_trans_async, 'w') as w:
+                        for item in result_list:
+                            w.write(item['alternatives'][0]
+                                    ['transcript'] + '\n')
+                    return
+                else:
+                    time.sleep(self.async_retry_interval)
 
 
 def sync_pipeline(file_id):
@@ -163,5 +183,10 @@ def workflow(method='async'):
                 future_list.append(executor.submit(async_pipeline, file_id))
             else:
                 future_list.append(executor.submit(sync_pipeline, file_id))
-    for future in as_completed(future_list):
-        print(future.result())
+
+
+def sync_workflow():
+    id_list = [file_id for file_id in os.listdir(
+        data_dir) if os.path.isdir(os.path.join(data_dir, file_id))]
+    for file_id in id_list:
+        sync_pipeline(file_id)

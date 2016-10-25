@@ -1,5 +1,5 @@
-from data import flat_data
-from speech import workflow
+import data
+import speech
 
-flat_data('/home/nhanh/test')
-workflow('sync')
+data.flat_data('/home/nhanh/test')
+speech.workflow(method='sync')
