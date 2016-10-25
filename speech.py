@@ -42,8 +42,10 @@ class Speech():
         self.resampled_file = os.path.join(
             self.resampled_dir, self.file_id + '-resampled.wav')
         self.googleapi_dir = os.path.join(self.working_dir, 'googleapi/')
-        self.googleapi_trans = os.path.join(
-            self.googleapi_dir, self.file_id + '-transcript.txt')
+        self.googleapi_trans_sync = os.path.join(
+            self.googleapi_dir, self.file_id + '-transcript-sync.txt')
+        self.googleapi_trans_async = os.path.join(
+            self.googleapi_dir, self.file_id + '-transcript-async.txt')
         self.async_max_retries = 10
         self.async_retry_interval = 30
 
@@ -91,7 +93,7 @@ class Speech():
 
         # write back transcript
         result_list = sync_response['results']
-        with open(self.googleapi_trans, 'w') as w:
+        with open(self.googleapi_trans_sync, 'w') as w:
             for item in result_list:
                 w.write(item['alternatives'][0]['transcript'] + '\n')
 
@@ -123,7 +125,7 @@ class Speech():
             if ('done' in operation.keys()):
                 async_response = operation['response']
                 result_list = async_response['results']
-                with open(self.googleapi_trans, 'w') as w:
+                with open(self.googleapi_trans_async, 'w') as w:
                     for item in result_list:
                         w.write(item['alternatives'][0]['transcript'] + '\n')
                 return
@@ -147,15 +149,19 @@ def async_pipeline(file_id):
     return file_id
 
 
-def async_workflow():
-    """Asynchronous multi-processing workflow."""
+def workflow(method='async'):
+    """Multi-processing workflow."""
+    if method not in ['sync', 'async']:
+        return None
     future_list = list()
     id_list = [file_id for file_id in os.listdir(
         data_dir) if os.path.isdir(os.path.join(data_dir, file_id))]
     max_workers = cpu_count() * 5
-
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         for file_id in id_list:
-            future_list.append(executor.submit(async_pipeline, file_id))
+            if (method == 'async'):
+                future_list.append(executor.submit(async_pipeline, file_id))
+            else:
+                future_list.append(executor.submit(sync_pipeline, file_id))
     for future in as_completed(future_list):
         print(future.result())
