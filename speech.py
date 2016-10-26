@@ -55,9 +55,19 @@ class Speech():
 
     def convert(self):
         """Resample file_id to 16kHz, 1 channel, 16 bit wav."""
-        tfm = sox.Transformer()
-        tfm.convert(samplerate=16000, n_channels=1, bitdepth=16)
-        tfm.build(self.raw_file, self.resampled_file)
+        # check for both raw and resampled
+        if (not os.path.exists(self.raw_file)):
+            logger.info(
+                '%s: Raw file does not exist. No further action.', self.file_id)
+            return None
+        elif (os.path.exists(self.resampled_file)):
+            logger.info(
+                '%s: Resampled file exists. No further action.', self.file_id)
+            return None
+        else:
+            tfm = sox.Transformer()
+            tfm.convert(samplerate=16000, n_channels=1, bitdepth=16)
+            tfm.build(self.raw_file, self.resampled_file)
 
     def get_initial_wait(self):
         """
@@ -80,10 +90,18 @@ class Speech():
         For files shorter than one minute.
         Synchronously recognize file_id. Return transcript of resampled file.
         """
-        # check for length
-        if (os.path.getsize(self.resampled_file) >= 1920000):
+        # check for resampled file, length and transcript
+        if (not os.path.exists(self.resampled_file)):
+            logger.info(
+                '%s: Resampled file does not exist. No further action.', self.file_id)
+            return None
+        elif (os.path.getsize(self.resampled_file) >= 1920000):
             logger.info(
                 '%s: File longer than 1 minute. Will not recognize.', self.file_id)
+            return None
+        elif (os.path.exists(self.googleapi_trans_sync)):
+            logger.info(
+                '%s: Transcript exists. No further action.', self.file_id)
             return None
         else:
             # construct json request
