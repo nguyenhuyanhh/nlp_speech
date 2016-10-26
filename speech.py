@@ -13,6 +13,8 @@ import sox
 # initialize paths
 cur_dir = os.path.dirname(os.path.realpath(__name__))
 data_dir = os.path.join(cur_dir, 'data/')
+lium_dir = os.path.join(cur_dir, 'lium/')
+lium_path = os.path.join(lium_dir, 'LIUM_SpkDiarization-8.4.1.jar')
 
 # initialize credentials
 api_key = 'AIzaSyC22qOuouVqsraoV6KzCHNAzdf3gWisOwc'
@@ -78,7 +80,6 @@ class Speech():
 
     def diarize(self):
         """LIUM diarization of file_id."""
-        lium_path = '/home/nhanh/lium/LIUM_SpkDiarization-8.4.1.jar'
         args = ['java', '-Xmx1024m', '-jar', lium_path, '--fInputMask=' +
                 self.resampled_file, '--sOutputMask=' + self.diarize_out, self.file_id]
         subprocess.call(args)
