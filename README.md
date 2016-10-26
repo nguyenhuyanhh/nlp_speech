@@ -3,14 +3,14 @@ This library performs speech file conversion using [SoX](http://sox.sourceforge.
 
 ## Requirements
 
-A Linux system and Python 3. This library is developed for Python 3.5.2 on Lubuntu 16.04.1 LTS.
+A Linux system and Python (both 2.7 and 3.5 works). This library is mainly developed on Python 2.7.12 on Lubuntu 16.04.1 LTS.
 
 ## Setup
 
 1. Clone the project
-1. Install SoX and the support library: `$ sudo apt-get install sox libsox-fmt-all`
-1. Install Python dependencies: `$ sudo pip3 install -r requirements.txt`
-1. Run the main program: `$ python3 main.py`
+1. Install SoX with mp3 support: `$ sudo apt-get install sox libsox-fmt-all`
+1. Install Python dependencies: `$ sudo pip install -r requirements.txt`
+1. Run the main program: `$ python main.py`
 
 ## Data folder structure
 

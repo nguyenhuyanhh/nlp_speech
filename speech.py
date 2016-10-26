@@ -2,6 +2,7 @@ import base64
 import os
 import time
 import logging
+import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from multiprocessing import cpu_count
 
@@ -14,7 +15,7 @@ cur_dir = os.path.dirname(os.path.realpath(__name__))
 data_dir = os.path.join(cur_dir, 'data/')
 
 # initialize credentials
-API_KEY = 'AIzaSyC22qOuouVqsraoV6KzCHNAzdf3gWisOwc'
+api_key = 'AIzaSyC22qOuouVqsraoV6KzCHNAzdf3gWisOwc'
 key_path = os.path.join(cur_dir, 'key.json')
 scopes = ['https://www.googleapis.com/auth/cloud-platform']
 credentials = ServiceAccountCredentials.from_json_keyfile_name(
@@ -30,6 +31,9 @@ bucket_name = 'speech-recognition-146903.appspot.com'
 
 # initialize logger
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger_oauth = logging.getLogger('oauth2client')
+logger_oauth.setLevel(logging.ERROR)
 
 
 class Speech():
@@ -45,6 +49,9 @@ class Speech():
         self.resampled_dir = os.path.join(self.working_dir, 'resampled/')
         self.resampled_file = os.path.join(
             self.resampled_dir, self.file_id + '-resampled.wav')
+        self.diarize_dir = os.path.join(self.working_dir, 'diarization/')
+        self.diarize_out = os.path.join(
+            self.diarize_dir, self.file_id + '-diarize-out.txt')
         self.googleapi_dir = os.path.join(self.working_dir, 'googleapi/')
         self.googleapi_trans_sync = os.path.join(
             self.googleapi_dir, self.file_id + '-transcript-sync.txt')
@@ -69,6 +76,13 @@ class Speech():
             tfm.convert(samplerate=16000, n_channels=1, bitdepth=16)
             tfm.build(self.raw_file, self.resampled_file)
 
+    def diarize(self):
+        """LIUM diarization of file_id."""
+        lium_path = '/home/nhanh/lium/LIUM_SpkDiarization-8.4.1.jar'
+        args = ['java', '-Xmx1024m', '-jar', lium_path, '--fInputMask=' +
+                self.resampled_file, '--sOutputMask=' + self.diarize_out, self.file_id]
+        subprocess.call(args)
+
     def get_initial_wait(self):
         """
         Get initial wait for async response.
@@ -79,11 +93,23 @@ class Speech():
 
     def upload(self):
         """Upload resampled file to Google Cloud Storage."""
-        request_body = {
-            'name': self.file_id,
-        }
-        objects.insert(bucket=bucket_name, body=request_body,
-                       media_body=self.resampled_file).execute()
+        # check for resampled file and length
+        # TO-DO: check for uploaded file
+        if (not os.path.exists(self.resampled_file)):
+            logger.info(
+                '%s: Resampled file does not exist. No further action.', self.file_id)
+            return None
+        elif (os.path.getsize(self.resampled_file) >= 153600000):
+            logger.info(
+                '%s: File longer than 80 minutes. Will not upload to recognize.', self.file_id)
+            return None
+        else:
+            request_body = {
+                'name': self.file_id,
+            }
+            objects.insert(bucket=bucket_name, body=request_body,
+                           media_body=self.resampled_file).execute()
+            logger.info('%s: File uploaded.', self.file_id)
 
     def recognize_sync(self):
         """
@@ -135,8 +161,11 @@ class Speech():
         For files longer than one minute and up to 80 minutes.
         Asynchronously recognize file_id. Return transcript of resampled file.
         """
-        # check for length
-        if (os.path.getsize(self.resampled_file) >= 153600000):
+        # check for transcript
+        # TO-DO: check for uploaded file
+        if (os.path.exists(self.googleapi_trans_async)):
+            logger.info(
+                '%s: Transcript exists. No further action.', self.file_id)
             return None
         else:
             # construct json request
@@ -153,20 +182,23 @@ class Speech():
             }
             async_response = speech.asyncrecognize(body=request_body).execute()
             operation_id = async_response['name']
+            logging.info('%s: Request URL: https://speech.googleapis.com/v1beta1/operations/%s?alt=json&key=%s',
+                         self.file_id, operation_id, api_key)
 
             # periodically poll for response up until a limit
             # if there is, write back to file
             time.sleep(self.get_initial_wait())
             for retries in range(self.async_max_retries):
                 operation = operations.get(name=operation_id).execute()
-                if ('done' in operation.keys() & operation['done'] == True):
+                if ('done' in operation.keys()):
                     async_response = operation['response']
                     result_list = async_response['results']
                     with open(self.googleapi_trans_async, 'w') as w:
                         for item in result_list:
                             w.write(item['alternatives'][0]
                                     ['transcript'] + '\n')
-                    return
+                    logger.info('%s: Transcript written.', self.file_id)
+                    return self.file_id
                 else:
                     time.sleep(self.async_retry_interval)
 

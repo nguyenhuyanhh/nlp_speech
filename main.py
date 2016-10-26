@@ -1,5 +1,13 @@
+import logging
+
 import data
 import speech
 
-data.flat_data('/home/nhanh/lium')
-speech.sync_workflow()
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# data.flat_data('/home/nhanh/test')
+# speech.sync_workflow()
+
+# s = speech.Speech('leon-perera-test-wav')
+speech.async_pipeline('leon-perera-test-wav')

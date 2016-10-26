@@ -1,13 +1,17 @@
 import shutil
 import os
+import logging
 
 from slugify import slugify
 
 AUDIO_EXTS = ['.wav', '.mp3']
 
-# init path
+# initialize path
 cur_dir = os.path.dirname(os.path.realpath(__name__))
 data_dir = os.path.join(cur_dir, 'data/')
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def flat_data(path):
