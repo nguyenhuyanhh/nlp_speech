@@ -54,6 +54,8 @@ class Speech():
         self.diarize_dir = os.path.join(self.working_dir, 'diarization/')
         self.diarize_out = os.path.join(
             self.diarize_dir, self.file_id + '-diarize.seg')
+        self.diarize_trans = os.path.join(
+            self.diarize_dir, self.file_id + '-transcript-diarize.txt')
         self.googleapi_dir = os.path.join(self.working_dir, 'googleapi/')
         self.googleapi_trans_sync = os.path.join(
             self.googleapi_dir, self.file_id + '-transcript-sync.txt')
@@ -74,6 +76,9 @@ class Speech():
     def has_trans_async(self):
         return os.path.exists(self.googleapi_trans_async)
 
+    def has_trans_diar(self):
+        return os.path.exists(self.diarize_trans)
+
     def get_duration(self):
         return os.path.getsize(self.resampled_file) / 32000
 
@@ -87,7 +92,7 @@ class Speech():
     def diarize(self):
         """LIUM diarization of file_id."""
         # call lium
-        args = ['java', '-Xmx1024m', '-jar', lium_path, '--fInputMask=' +
+        args = ['java', '-Xmx2048m', '-jar', lium_path, '--fInputMask=' +
                 self.resampled_file, '--sOutputMask=' + self.diarize_out, self.file_id]
         subprocess.call(args)
 
@@ -128,6 +133,48 @@ class Speech():
         objects.insert(bucket=bucket_name, body=request_body,
                        media_body=self.resampled_file).execute()
         logger.info('%s: File uploaded.', self.file_id)
+
+    def recognize_diarize(self):
+        """Synchronously recognize diarized parts of file_id."""
+        # synchronously recognize
+        # then update diarization specs
+        diarize_dict = self.diarize()
+        for key in sorted(diarize_dict.keys()):
+            value = diarize_dict[key]
+            path = os.path.join(self.diarize_dir, value[3])
+            with open(path, 'rb') as f:
+                content = base64.b64encode(f.read()).decode('utf-8')
+            request_body = {
+                "audio": {
+                    "content": content
+                },
+                "config": {
+                    "languageCode": "en-US",
+                    "encoding": "LINEAR16",
+                    "sampleRate": 16000
+                },
+            }
+            sync_response = speech.syncrecognize(body=request_body).execute()
+            if ('results' not in sync_response.keys()):
+                new_value = (value[0], value[1], value[2], value[3], '')
+            else:
+                result_list = sync_response['results']
+                trans_list = list()
+                for item in result_list:
+                    trans_list.append(item['alternatives'][0]['transcript'])
+                result_str = ' '.join(trans_list)
+                new_value = (value[0], value[1], value[
+                             2], value[3], result_str)
+            diarize_dict[key] = new_value
+
+        # write back transcript
+        with open(self.diarize_trans, 'w') as w:
+            for key in sorted(diarize_dict.keys()):
+                value = diarize_dict[key]
+                w.write(value[4] + '\n')
+            logger.info('%s: Transcript written.', self.file_id)
+
+        return diarize_dict
 
     def recognize_sync(self):
         """
@@ -256,6 +303,30 @@ def async_pipeline(file_id):
             '%s: Transcript exists. No further action.', file_id)
     else:
         s.recognize_async()
+
+    return file_id
+
+
+def diarize_pipeline(file_id):
+    """Synchronous processing pipeline with diarization for file_id."""
+    s = Speech(file_id)
+
+    # convert, check for raw and resampled
+    if (not s.has_raw()):
+        logger.info(
+            '%s: Raw file does not exist. No further action.', file_id)
+    elif (s.has_resampled()):
+        logger.info(
+            '%s: Resampled file exists. No further action.', file_id)
+    else:
+        s.convert()
+
+    # diarize, check for transcript
+    if (s.has_trans_diar()):
+        logger.info(
+            '%s: Transcript exists. No further action.', file_id)
+    else:
+        s.recognize_diarize()
 
     return file_id
 
