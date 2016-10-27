@@ -5,7 +5,6 @@ import logging
 import subprocess
 from decimal import Decimal
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from multiprocessing import cpu_count
 
 from googleapiclient.discovery import build
 from oauth2client.service_account import ServiceAccountCredentials
@@ -208,21 +207,21 @@ def sync_pipeline(file_id):
     # convert, check for raw and resampled
     if (not s.has_raw()):
         logger.info(
-            '%s: Raw file does not exist. No further action.', self.file_id)
+            '%s: Raw file does not exist. No further action.', file_id)
     elif (s.has_resampled()):
         logger.info(
-            '%s: Resampled file exists. No further action.', self.file_id)
+            '%s: Resampled file exists. No further action.', file_id)
     else:
         s.convert()
 
     # recognize_sync, check for duration and transcript
     if (s.get_duration() >= 60):
         logger.info(
-            '%s: File longer than 1 minute. Will not recognize.', self.file_id)
+            '%s: File longer than 1 minute. Will not recognize.', file_id)
         return None
     elif (s.has_trans_sync()):
         logger.info(
-            '%s: Transcript exists. No further action.', self.file_id)
+            '%s: Transcript exists. No further action.', file_id)
     else:
         s.recognize_sync()
 
@@ -236,17 +235,17 @@ def async_pipeline(file_id):
     # convert, check for raw and resampled
     if (not s.has_raw()):
         logger.info(
-            '%s: Raw file does not exist. No further action.', self.file_id)
+            '%s: Raw file does not exist. No further action.', file_id)
     elif (s.has_resampled()):
         logger.info(
-            '%s: Resampled file exists. No further action.', self.file_id)
+            '%s: Resampled file exists. No further action.', file_id)
     else:
         s.convert()
 
     # upload, check for duration
     if (s.get_duration() >= 4800):
         logger.info(
-            '%s: File longer than 1 minute. Will not recognize.', self.file_id)
+            '%s: File longer than 1 minute. Will not recognize.', file_id)
         return None
     else:
         s.upload()
@@ -254,7 +253,7 @@ def async_pipeline(file_id):
     # recognize_async, check for transcript
     if (s.has_trans_async()):
         logger.info(
-            '%s: Transcript exists. No further action.', self.file_id)
+            '%s: Transcript exists. No further action.', file_id)
     else:
         s.recognize_async()
 
@@ -269,12 +268,11 @@ def sync_workflow():
         sync_pipeline(file_id)
 
 
-def async_workflow():
+def async_workflow(max_workers=20):
     """Asynchronous multi-processing workflow for /data."""
     future_list = list()
     id_list = [file_id for file_id in os.listdir(
         data_dir) if os.path.isdir(os.path.join(data_dir, file_id))]
-    max_workers = cpu_count() * 5
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         for file_id in id_list:
             future_list.append(executor.submit(async_pipeline, file_id))

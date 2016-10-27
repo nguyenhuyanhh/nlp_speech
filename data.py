@@ -32,3 +32,4 @@ def flat_data(path):
                 if not os.path.exists(dir):
                     os.makedirs(dir)
             shutil.copy2(file_path, raw_dir)
+            logger.info("Processed %s", file_id)
