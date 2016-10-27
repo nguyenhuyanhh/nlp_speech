@@ -179,8 +179,8 @@ class Speech():
         }
         async_response = speech.asyncrecognize(body=request_body).execute()
         operation_id = async_response['name']
-        logging.info('%s: Request URL: https://speech.googleapis.com/v1beta1/operations/%s?alt=json&key=%s',
-                     self.file_id, operation_id, api_key)
+        logger.info('%s: Request URL: https://speech.googleapis.com/v1beta1/operations/%s?alt=json&key=%s',
+                    self.file_id, operation_id, api_key)
 
         # periodically poll for response up until a limit
         # if there is, write back to file
