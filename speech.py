@@ -63,21 +63,27 @@ class Speech():
         self.async_max_retries = 10
         self.async_retry_interval = 30
 
+    def has_raw(self):
+        return os.path.exists(self.raw_file)
+
+    def has_resampled(self):
+        return os.path.exists(self.resampled_file)
+
+    def has_trans_sync(self):
+        return os.path.exists(self.googleapi_trans_sync)
+
+    def has_trans_async(self):
+        return os.path.exists(self.googleapi_trans_async)
+
+    def get_duration(self):
+        return os.path.getsize(self.resampled_file) / 32000
+
     def convert(self):
         """Resample file_id to 16kHz, 1 channel, 16 bit wav."""
-        # check for both raw and resampled
-        if (not os.path.exists(self.raw_file)):
-            logger.info(
-                '%s: Raw file does not exist. No further action.', self.file_id)
-            return None
-        elif (os.path.exists(self.resampled_file)):
-            logger.info(
-                '%s: Resampled file exists. No further action.', self.file_id)
-            return None
-        else:
-            tfm = sox.Transformer()
-            tfm.convert(samplerate=16000, n_channels=1, bitdepth=16)
-            tfm.build(self.raw_file, self.resampled_file)
+        tfm = sox.Transformer()
+        tfm.convert(samplerate=16000, n_channels=1, bitdepth=16)
+        tfm.build(self.raw_file, self.resampled_file)
+        logger.info('%s: Resampled file written.', self.file_id)
 
     def diarize(self):
         """LIUM diarization of file_id."""
@@ -100,6 +106,7 @@ class Speech():
                         speaker_gender, start_time, end_time)
 
         # split resampled file according to diarization specs
+        # then update the specs
         count = 1
         for key in sorted(diarize_dict.keys()):
             value = diarize_dict[key]
@@ -108,162 +115,166 @@ class Speech():
             tfm = sox.Transformer()
             tfm.trim(value[1], value[2])
             tfm.build(self.resampled_file, path_out)
+            new_value = (value[0], value[1], value[2], file_name)
+            diarize_dict[key] = new_value
             count += 1
 
-    def get_initial_wait(self):
-        """
-        Get initial wait for async response.
-        Utilising an assumption that time taken to process a speech file
-        is roughly the same as the duration of that file.
-        """
-        return os.path.getsize(self.resampled_file) / 32000
+        return diarize_dict
 
     def upload(self):
         """Upload resampled file to Google Cloud Storage."""
-        # check for resampled file and length
-        # TO-DO: check for uploaded file
-        if (not os.path.exists(self.resampled_file)):
-            logger.info(
-                '%s: Resampled file does not exist. No further action.', self.file_id)
-            return None
-        elif (os.path.getsize(self.resampled_file) >= 153600000):
-            logger.info(
-                '%s: File longer than 80 minutes. Will not upload to recognize.', self.file_id)
-            return None
-        else:
-            request_body = {
-                'name': self.file_id,
-            }
-            objects.insert(bucket=bucket_name, body=request_body,
-                           media_body=self.resampled_file).execute()
-            logger.info('%s: File uploaded.', self.file_id)
+        request_body = {
+            'name': self.file_id,
+        }
+        objects.insert(bucket=bucket_name, body=request_body,
+                       media_body=self.resampled_file).execute()
+        logger.info('%s: File uploaded.', self.file_id)
 
     def recognize_sync(self):
         """
         For files shorter than one minute.
         Synchronously recognize file_id. Return transcript of resampled file.
         """
-        # check for resampled file, length and transcript
-        if (not os.path.exists(self.resampled_file)):
-            logger.info(
-                '%s: Resampled file does not exist. No further action.', self.file_id)
-            return None
-        elif (os.path.getsize(self.resampled_file) >= 1920000):
-            logger.info(
-                '%s: File longer than 1 minute. Will not recognize.', self.file_id)
-            return None
-        elif (os.path.exists(self.googleapi_trans_sync)):
-            logger.info(
-                '%s: Transcript exists. No further action.', self.file_id)
-            return None
-        else:
-            # construct json request
-            with open(self.resampled_file, 'rb') as f:
-                content = base64.b64encode(f.read()).decode('utf-8')
-            request_body = {
-                "audio": {
-                    "content": content
-                },
-                "config": {
-                    "languageCode": "en-US",
-                    "encoding": "LINEAR16",
-                    "sampleRate": 16000
-                },
-            }
-            sync_response = speech.syncrecognize(body=request_body).execute()
+        # construct json request
+        with open(self.resampled_file, 'rb') as f:
+            content = base64.b64encode(f.read()).decode('utf-8')
+        request_body = {
+            "audio": {
+                "content": content
+            },
+            "config": {
+                "languageCode": "en-US",
+                "encoding": "LINEAR16",
+                "sampleRate": 16000
+            },
+        }
+        sync_response = speech.syncrecognize(body=request_body).execute()
 
-            # write back transcript if present
-            if ('results' not in sync_response.keys()):
-                logger.info(
-                    '%s: No results. Transcript not returned.', self.file_id)
-            else:
-                result_list = sync_response['results']
-                with open(self.googleapi_trans_sync, 'w') as w:
-                    for item in result_list:
-                        w.write(item['alternatives'][0]['transcript'] + '\n')
-                logger.info('%s: Transcript written.', self.file_id)
+        # write back transcript if present
+        if ('results' not in sync_response.keys()):
+            logger.info(
+                '%s: No results. Transcript not returned.', self.file_id)
+        else:
+            result_list = sync_response['results']
+            with open(self.googleapi_trans_sync, 'w') as w:
+                for item in result_list:
+                    w.write(item['alternatives'][0]['transcript'] + '\n')
+            logger.info('%s: Transcript written.', self.file_id)
 
     def recognize_async(self):
         """
         For files longer than one minute and up to 80 minutes.
         Asynchronously recognize file_id. Return transcript of resampled file.
         """
-        # check for transcript
-        # TO-DO: check for uploaded file
-        if (os.path.exists(self.googleapi_trans_async)):
-            logger.info(
-                '%s: Transcript exists. No further action.', self.file_id)
-            return None
-        else:
-            # construct json request
-            uri = 'gs://{}/{}'.format(bucket_name, self.file_id)
-            request_body = {
-                "audio": {
-                    "uri": uri
-                },
-                "config": {
-                    "languageCode": "en-US",
-                    "encoding": "LINEAR16",
-                    "sampleRate": 16000
-                },
-            }
-            async_response = speech.asyncrecognize(body=request_body).execute()
-            operation_id = async_response['name']
-            logging.info('%s: Request URL: https://speech.googleapis.com/v1beta1/operations/%s?alt=json&key=%s',
-                         self.file_id, operation_id, api_key)
+        # construct json request
+        uri = 'gs://{}/{}'.format(bucket_name, self.file_id)
+        request_body = {
+            "audio": {
+                "uri": uri
+            },
+            "config": {
+                "languageCode": "en-US",
+                "encoding": "LINEAR16",
+                "sampleRate": 16000
+            },
+        }
+        async_response = speech.asyncrecognize(body=request_body).execute()
+        operation_id = async_response['name']
+        logging.info('%s: Request URL: https://speech.googleapis.com/v1beta1/operations/%s?alt=json&key=%s',
+                     self.file_id, operation_id, api_key)
 
-            # periodically poll for response up until a limit
-            # if there is, write back to file
-            time.sleep(self.get_initial_wait())
-            for retries in range(self.async_max_retries):
-                operation = operations.get(name=operation_id).execute()
-                if ('done' in operation.keys()):
-                    async_response = operation['response']
-                    result_list = async_response['results']
-                    with open(self.googleapi_trans_async, 'w') as w:
-                        for item in result_list:
-                            w.write(item['alternatives'][0]
-                                    ['transcript'] + '\n')
-                    logger.info('%s: Transcript written.', self.file_id)
-                    return self.file_id
-                else:
-                    time.sleep(self.async_retry_interval)
+        # periodically poll for response up until a limit
+        # if there is, write back to file
+        time.sleep(self.get_duration())
+        for retries in range(self.async_max_retries):
+            operation = operations.get(name=operation_id).execute()
+            if ('done' in operation.keys()):
+                async_response = operation['response']
+                result_list = async_response['results']
+                with open(self.googleapi_trans_async, 'w') as w:
+                    for item in result_list:
+                        w.write(item['alternatives'][0]
+                                ['transcript'] + '\n')
+                logger.info('%s: Transcript written.', self.file_id)
+                return self.file_id
+            else:
+                time.sleep(self.async_retry_interval)
 
 
 def sync_pipeline(file_id):
     """Synchronous processing pipeline for file_id."""
     s = Speech(file_id)
-    for method in [s.convert, s.recognize_sync]:
-        method()
+
+    # convert, check for raw and resampled
+    if (not s.has_raw()):
+        logger.info(
+            '%s: Raw file does not exist. No further action.', self.file_id)
+    elif (s.has_resampled()):
+        logger.info(
+            '%s: Resampled file exists. No further action.', self.file_id)
+    else:
+        s.convert()
+
+    # recognize_sync, check for duration and transcript
+    if (s.get_duration() >= 60):
+        logger.info(
+            '%s: File longer than 1 minute. Will not recognize.', self.file_id)
+        return None
+    elif (s.has_trans_sync()):
+        logger.info(
+            '%s: Transcript exists. No further action.', self.file_id)
+    else:
+        s.recognize_sync()
+
     return file_id
 
 
 def async_pipeline(file_id):
     """Asynchronous processing pipeline for file_id."""
     s = Speech(file_id)
-    for method in [s.convert, s.upload, s.recognize_async]:
-        method()
+
+    # convert, check for raw and resampled
+    if (not s.has_raw()):
+        logger.info(
+            '%s: Raw file does not exist. No further action.', self.file_id)
+    elif (s.has_resampled()):
+        logger.info(
+            '%s: Resampled file exists. No further action.', self.file_id)
+    else:
+        s.convert()
+
+    # upload, check for duration
+    if (s.get_duration() >= 4800):
+        logger.info(
+            '%s: File longer than 1 minute. Will not recognize.', self.file_id)
+        return None
+    else:
+        s.upload()
+
+    # recognize_async, check for transcript
+    if (s.has_trans_async()):
+        logger.info(
+            '%s: Transcript exists. No further action.', self.file_id)
+    else:
+        s.recognize_async()
+
     return file_id
 
 
-def workflow(method='async'):
-    """Multi-processing workflow."""
-    if method not in ['sync', 'async']:
-        return None
+def sync_workflow():
+    """Synchronous processing workflow for /data."""
+    id_list = [file_id for file_id in os.listdir(
+        data_dir) if os.path.isdir(os.path.join(data_dir, file_id))]
+    for file_id in id_list:
+        sync_pipeline(file_id)
+
+
+def async_workflow():
+    """Asynchronous multi-processing workflow for /data."""
     future_list = list()
     id_list = [file_id for file_id in os.listdir(
         data_dir) if os.path.isdir(os.path.join(data_dir, file_id))]
     max_workers = cpu_count() * 5
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         for file_id in id_list:
-            if (method == 'async'):
-                future_list.append(executor.submit(async_pipeline, file_id))
-            else:
-                future_list.append(executor.submit(sync_pipeline, file_id))
-
-
-def sync_workflow():
-    id_list = [file_id for file_id in os.listdir(
-        data_dir) if os.path.isdir(os.path.join(data_dir, file_id))]
-    for file_id in id_list:
-        sync_pipeline(file_id)
+            future_list.append(executor.submit(async_pipeline, file_id))
