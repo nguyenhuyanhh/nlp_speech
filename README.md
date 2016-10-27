@@ -1,9 +1,13 @@
 # nlp_speech
-This library performs speech file conversion using [SoX](http://sox.sourceforge.net), and speech recognition using Google Cloud Speech API.
+This library performs speech file conversion using [SoX](http://sox.sourceforge.net), speaker diarization using [LIUM](http://www-lium.univ-lemans.fr/diarization/doku.php/), and speech recognition using [Google Cloud Speech API](https://cloud.google.com/speech/).
 
 ## Requirements
 
-A Linux system and Python (both 2.7 and 3.5 works). This library is mainly developed on Python 2.7.12 on Lubuntu 16.04.1 LTS.
+1. Linux
+1. Python (both 2.7 and 3.5 works)
+1. Java (at least 1.6)
+
+This library is developed using Python 2.7.12 on Lubuntu 16.04.1 LTS. The Java environment is 1.8.0_101.
 
 ## Setup
 
@@ -26,8 +30,9 @@ data/
         diarization/
             [diarization_files]
         googleapi/
-            [file_id 1]-async.txt # transcript from Google Cloud Speech API
-            [file_id 1]-async.txt.gold # gold standard transcript
+            [file_id 1]-transcript-sync.txt # transcript from Google Cloud Speech API (synchronous)
+            [file_id 1]-transcript-async.txt # transcript from Google Cloud Speech API (asynchronous)
+            [file_id 1]-transcript-gold.txt # gold standard transcript
     [file_id 2]/
         ...
     ...
@@ -35,5 +40,4 @@ data/
 
 ## To-dos
 
-1. If google-cloud supports Cloud Speech API, move code to that library instead of google-api-python-client
-1. Diarization?
+If google-cloud supports Cloud Speech API, move code to that library instead of google-api-python-client
