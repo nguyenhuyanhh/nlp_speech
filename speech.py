@@ -3,6 +3,7 @@ import os
 import time
 import logging
 import subprocess
+from decimal import Decimal
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from multiprocessing import cpu_count
 
@@ -53,7 +54,7 @@ class Speech():
             self.resampled_dir, self.file_id + '-resampled.wav')
         self.diarize_dir = os.path.join(self.working_dir, 'diarization/')
         self.diarize_out = os.path.join(
-            self.diarize_dir, self.file_id + '-diarize-out.txt')
+            self.diarize_dir, self.file_id + '-diarize.seg')
         self.googleapi_dir = os.path.join(self.working_dir, 'googleapi/')
         self.googleapi_trans_sync = os.path.join(
             self.googleapi_dir, self.file_id + '-transcript-sync.txt')
@@ -80,9 +81,34 @@ class Speech():
 
     def diarize(self):
         """LIUM diarization of file_id."""
+        # call lium
         args = ['java', '-Xmx1024m', '-jar', lium_path, '--fInputMask=' +
                 self.resampled_file, '--sOutputMask=' + self.diarize_out, self.file_id]
         subprocess.call(args)
+
+        # diarization specification
+        diarize_dict = dict()
+        with open(self.diarize_out, 'r') as file:
+            line_list = file.readlines()
+            for line in line_list:
+                words = line.strip().split()
+                if (words[0] == self.file_id):
+                    speaker_gender = words[7] + '-' + words[4]
+                    start_time = Decimal(words[2]) / 100
+                    end_time = (Decimal(words[2]) + Decimal(words[3])) / 100
+                    diarize_dict[int(words[2])] = (
+                        speaker_gender, start_time, end_time)
+
+        # split resampled file according to diarization specs
+        count = 1
+        for key in sorted(diarize_dict.keys()):
+            value = diarize_dict[key]
+            file_name = '{}-{}.wav'.format(count, value[0])
+            path_out = os.path.join(self.diarize_dir, file_name)
+            tfm = sox.Transformer()
+            tfm.trim(value[1], value[2])
+            tfm.build(self.resampled_file, path_out)
+            count += 1
 
     def get_initial_wait(self):
         """
