@@ -28,7 +28,10 @@ data/
         resampled/
             [file_id 1]-resampled.wav
         diarization/
-            [diarization_files]
+            [file_id 1]-diarize.seg # lium output
+            [diarized .wav files]
+            [file_id 1]-transcript-diarize.txt # combined transcript from diarized files
+            [file_id 1]-transcript-diarize.stm # stm file, to be passed to transcription editing software
         googleapi/
             [file_id 1]-transcript-sync.txt # transcript from Google Cloud Speech API (synchronous)
             [file_id 1]-transcript-async.txt # transcript from Google Cloud Speech API (asynchronous)

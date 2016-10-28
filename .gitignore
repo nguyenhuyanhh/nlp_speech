@@ -4,6 +4,7 @@ __pycache__/
 
 # Data
 data/
+data_bkup/
 *.log
 
 # VSCode
