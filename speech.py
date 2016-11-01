@@ -102,6 +102,7 @@ class Speech():
         args = ['java', '-Xmx2048m', '-jar', lium_path, '--fInputMask=' +
                 self.resampled_file, '--sOutputMask=' + self.diarize_out, self.file_id]
         subprocess.call(args)
+        logger.info('diarize: %s: Diarization file written.', self.file_id)
 
     def seg_to_dict(self):
         """Convert LIUM output to Python-friendly input."""
@@ -164,6 +165,7 @@ class Speech():
                 result_str = ' '.join(trans_list)
                 new_value = (value[0], value[1], value[2], result_str)
             diarize_dict[key] = new_value
+            count += 1
 
         # write back transcript
         with open(self.diarize_trans, 'w') as w:
@@ -174,6 +176,26 @@ class Speech():
                 'recognize_diarize: %s: Transcript written.', self.file_id)
 
         # write back textgrid
+        with open(self.diarize_textgrid, 'w') as w:
+            # header
+            w.write('File type = "ooTextFile"\nObject class = "TextGrid"\n\n')
+            w.write('xmin = 0.0\nxmax = {}\ntiers? <exists>\nsize = 1\n'.format(
+                self.get_duration()))
+            w.write('item []:\n    item[1]:\n        class = "IntervalTier"\n')
+            w.write('        name = "default"\n        xmin = 0.0\n')
+            w.write('        xmax = {}\n        intervals: size = {}\n'.format(
+                self.get_duration(), len(diarize_dict)))
+            # items
+            count = 1
+            for key in sorted(diarize_dict.keys()):
+                value = diarize_dict[key]
+                w.write('        intervals [{}]\n'.format(count))
+                w.write('            xmin = {}\n'.format(value[1]))
+                w.write('            xmax = {}\n'.format(value[2]))
+                w.write('            text = "{}"\n'.format(value[3]))
+                count += 1
+            logger.info(
+                'recognize_diarize: %s: TextGrid written.', self.file_id)
 
     def textgrid_from_seg_trans(self):
         """Output a .TextGrid file from existing diarization and recognition"""
@@ -207,6 +229,8 @@ class Speech():
                 w.write('            xmax = {}\n'.format(value[2]))
                 w.write('            text = "{}"\n'.format(value[3]))
                 count += 1
+            logger.info(
+                'textgrid_from_seg_trans: %s: TextGrid written.', self.file_id)
 
     def recognize_sync(self):
         """
@@ -355,11 +379,21 @@ def diarize_pipeline(file_id):
     else:
         s.convert()
 
-    # diarize, check for transcript
-    if (s.has_trans_diar()):
+    # diarize and recognize, check for textgrid and transcript
+    if (s.has_textgrid()):
         logger.info(
-            'recognize_diarize: %s: Transcript exists. No further action.', file_id)
+            'recognize_diarize: %s: TextGrid exists. No further action.', file_id)
+    elif (s.has_seg()):
+        logger.info(
+            'diarize: %s: Diarization file exists. No further action.', file_id)
+        if (s.has_trans_diar()):
+            logger.info(
+                'recognize_diarize: %s: Transcript exists. Writing TextGrid.', file_id)
+            s.textgrid_from_seg_trans()
+        else:
+            s.recognize_diarize()
     else:
+        s.diarize()
         s.recognize_diarize()
 
     return file_id
@@ -381,3 +415,11 @@ def async_workflow(max_workers=20):
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         for file_id in id_list:
             future_list.append(executor.submit(async_pipeline, file_id))
+
+
+def diarize_workflow():
+    """Synchronous diarization workflow for /data."""
+    id_list = [file_id for file_id in os.listdir(
+        data_dir) if os.path.isdir(os.path.join(data_dir, file_id))]
+    for file_id in id_list:
+        diarize_pipeline(file_id)
