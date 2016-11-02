@@ -6,10 +6,9 @@ from slugify import slugify
 
 AUDIO_EXTS = ['.wav', '.mp3']
 
-# initialize path
+# initialize path and logger
 cur_dir = os.path.dirname(os.path.realpath(__name__))
 data_dir = os.path.join(cur_dir, 'data/')
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -33,3 +32,16 @@ def flat_data(path):
                     os.makedirs(dir)
             shutil.copy2(file_path, raw_dir)
             logger.info("Processed %s", file_id)
+
+
+def clear_intermediate(path):
+    """
+    Clear all intermediate files (resampled and diarization) from a path.
+    Path must contain all folders with the structure described in /README.md.
+    """
+    for dir in os.listdir(path):
+        working_dir = os.path.join(path, dir)
+        resampled_dir = os.path.join(working_dir, 'resampled/')
+        diarize_dir = os.path.join(working_dir, 'diarization/')
+        shutil.rmtree(resampled_dir, ignore_errors=True)
+        shutil.rmtree(diarize_dir, ignore_errors=True)
