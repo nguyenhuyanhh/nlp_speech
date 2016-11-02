@@ -55,14 +55,16 @@ class Speech():
         self.diarize_file = os.path.join(
             self.diarize_dir, self.file_id + '-diarize.seg')
         self.trans_dir = os.path.join(self.working_dir, 'transcript/')
+        self.googleapi_dir = os.path.join(self.trans_dir, 'googleapi/')
+        self.textgrid_dir = os.path.join(self.trans_dir, 'textgrid/')
         self.trans_sync = os.path.join(
-            self.trans_dir, self.file_id + '-sync.txt')
+            self.googleapi_dir, self.file_id + '-sync.txt')
         self.trans_async = os.path.join(
-            self.trans_dir, self.file_id + '-async.txt')
+            self.googleapi_dir, self.file_id + '-async.txt')
         self.trans_diar = os.path.join(
-            self.trans_dir, self.file_id + '-diarize.txt')
+            self.googleapi_dir, self.file_id + '-diarize.txt')
         self.trans_textgrid = os.path.join(
-            self.trans_dir, self.file_id + '-diarize.TextGrid')
+            self.textgrid_dir, self.file_id + '-diarize.TextGrid')
         self.async_max_retries = 10
         self.async_retry_interval = 30
 

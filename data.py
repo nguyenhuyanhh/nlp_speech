@@ -25,9 +25,11 @@ def flat_data(path):
             working_dir = os.path.join(data_dir, file_id + '/')
             raw_dir = os.path.join(working_dir, 'raw/')
             resampled_dir = os.path.join(working_dir, 'resampled/')
-            trans_dir = os.path.join(working_dir, 'transcript/')
             diarize_dir = os.path.join(working_dir, 'diarization/')
-            for dir in [raw_dir, resampled_dir, trans_dir, diarize_dir]:
+            trans_dir = os.path.join(working_dir, 'transcript/')
+            googleapi_dir = os.path.join(trans_dir, 'googleapi/')
+            textgrid_dir = os.path.join(trans_dir, 'textgrid/')
+            for dir in [raw_dir, resampled_dir, diarize_dir, trans_dir, googleapi_dir, textgrid_dir]:
                 if not os.path.exists(dir):
                     os.makedirs(dir)
             shutil.copy2(file_path, raw_dir)

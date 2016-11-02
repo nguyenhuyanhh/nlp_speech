@@ -31,11 +31,13 @@ data/
             [file_id 1]-diarize.seg # lium output
             [diarized .wav files]
         transcript/
-            [file_id 1]-sync.txt # transcript from Google Cloud Speech API (synchronous)
-            [file_id 1]-async.txt # transcript from Google Cloud Speech API (asynchronous)
-            [file_id 1]-diarize.txt # combined transcript from diarized files
-            [file_id 1]-diarize.TextGrid # TextGrid file, to be passed to transcription editing software
-            [file_id 1]-gold.txt # gold standard transcript
+            googleapi/
+                [file_id 1]-sync.txt # transcript from Cloud Speech API (synchronous)
+                [file_id 1]-async.txt # transcript from Cloud Speech API (asynchronous)
+                [file_id 1]-diarize.txt # combined transcript from diarized files
+                [file_id 1]-gold.txt # gold standard transcript
+            textgrid/    
+                [file_id 1]-diarize.TextGrid # TextGrid file, to be passed to Praat
     [file_id 2]/
         ...
     ...
