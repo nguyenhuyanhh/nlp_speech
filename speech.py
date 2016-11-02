@@ -61,9 +61,9 @@ class Speech():
             self.googleapi_dir, self.file_id + '-sync.txt')
         self.trans_async = os.path.join(
             self.googleapi_dir, self.file_id + '-async.txt')
-        self.trans_diar = os.path.join(
+        self.trans_diarize = os.path.join(
             self.googleapi_dir, self.file_id + '-diarize.txt')
-        self.trans_textgrid = os.path.join(
+        self.textgrid = os.path.join(
             self.textgrid_dir, self.file_id + '-diarize.TextGrid')
         self.async_max_retries = 10
         self.async_retry_interval = 30
@@ -83,11 +83,11 @@ class Speech():
     def has_trans_async(self):
         return os.path.exists(self.trans_async)
 
-    def has_trans_diar(self):
-        return os.path.exists(self.trans_diar)
+    def has_trans_diarize(self):
+        return os.path.exists(self.trans_diarize)
 
     def has_textgrid(self):
-        return os.path.exists(self.trans_textgrid)
+        return os.path.exists(self.textgrid)
 
     def get_duration(self):
         return Decimal(os.path.getsize(self.resampled_file)) / 32000
@@ -172,7 +172,7 @@ class Speech():
             count += 1
 
         # write back transcript
-        with open(self.trans_diar, 'w') as w:
+        with open(self.trans_diarize, 'w') as w:
             for key in sorted(diarize_dict.keys()):
                 value = diarize_dict[key]
                 w.write(value[3] + '\n')
@@ -180,7 +180,7 @@ class Speech():
                 'recognize_diarize: %s: Transcript written.', self.file_id)
 
         # write back textgrid
-        with open(self.trans_textgrid, 'w') as w:
+        with open(self.textgrid, 'w') as w:
             # header
             w.write('File type = "ooTextFile"\nObject class = "TextGrid"\n\n')
             w.write('xmin = 0.0\nxmax = {}\ntiers? <exists>\nsize = 1\n'.format(
@@ -205,7 +205,7 @@ class Speech():
         """Output a .TextGrid file from existing diarization and recognition"""
         diarize_dict = self.seg_to_dict()
         # output diarization specs with transcript
-        with open(self.trans_diar, 'r') as f:
+        with open(self.trans_diarize, 'r') as f:
             trans_line_list = f.read().split('\n')
         index = 0
         for key in sorted(diarize_dict.keys()):
@@ -215,7 +215,7 @@ class Speech():
             index += 1
 
         # output textgrid
-        with open(self.trans_textgrid, 'w') as w:
+        with open(self.textgrid, 'w') as w:
             # header
             w.write('File type = "ooTextFile"\nObject class = "TextGrid"\n\n')
             w.write('xmin = 0.0\nxmax = {}\ntiers? <exists>\nsize = 1\n'.format(
@@ -390,7 +390,7 @@ def diarize_pipeline(file_id):
     elif (s.has_diarize()):
         logger.info(
             'diarize: %s: Diarization file exists. No further action.', file_id)
-        if (s.has_trans_diar()):
+        if (s.has_trans_diarize()):
             logger.info(
                 'recognize_diarize: %s: Transcript exists. Writing TextGrid.', file_id)
             s.textgrid_from_seg_trans()

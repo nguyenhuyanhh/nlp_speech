@@ -33,7 +33,7 @@ def flat_data(path):
                 if not os.path.exists(dir):
                     os.makedirs(dir)
             shutil.copy2(file_path, raw_dir)
-            logger.info("Processed %s", file_id)
+            logger.info('Processed %s', file_id)
 
 
 def clear_intermediate(path):
@@ -47,3 +47,30 @@ def clear_intermediate(path):
         diarize_dir = os.path.join(working_dir, 'diarization/')
         shutil.rmtree(resampled_dir, ignore_errors=True)
         shutil.rmtree(diarize_dir, ignore_errors=True)
+        logger.info('Processed %s', dir)
+
+
+def clear_intermediate_old(path):
+    """
+    Clear all intermediate files (resampled and diarization) from a path.
+    Path must contain all folders with the old structure
+    """
+    for dir in os.listdir(path):
+        working_dir = os.path.join(path, dir)
+        resampled_dir = os.path.join(working_dir, 'resampled/')
+        diarize_dir = os.path.join(working_dir, 'diarization/')
+        old_googleapi_dir = os.path.join(working_dir, 'googleapi/')
+        googleapi_dir = os.path.join(working_dir, 'transcript/googleapi/')
+        textgrid_dir = os.path.join(working_dir, 'transcript/textgrid/')
+        os.makedirs(googleapi_dir)
+        os.makedirs(textgrid_dir)
+        old_trans = os.path.join(diarize_dir, dir + '-diarize.txt')
+        new_trans = os.path.join(googleapi_dir, dir + '-diarize.txt')
+        shutil.move(old_trans, new_trans)
+        old_textgrid = os.path.join(diarize_dir, dir + '-diarize.TextGrid')
+        new_textgrid = os.path.join(textgrid_dir, dir + '-diarize.TextGrid')
+        shutil.move(old_textgrid, new_textgrid)
+        shutil.rmtree(resampled_dir, ignore_errors=True)
+        shutil.rmtree(diarize_dir, ignore_errors=True)
+        shutil.rmtree(old_googleapi_dir, ignore_errors=True)
+        logger.info('Processed %s', dir)
