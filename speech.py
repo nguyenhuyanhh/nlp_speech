@@ -99,9 +99,11 @@ class Speech():
 
     def diarize(self):
         """LIUM diarization of file_id."""
+        # silent output
+        fnull = open(os.devnull, 'w')
         args = ['java', '-Xmx2048m', '-jar', lium_path, '--fInputMask=' +
                 self.resampled_file, '--sOutputMask=' + self.diarize_file, self.file_id]
-        subprocess.call(args)
+        subprocess.call(args, stdout=fnull, stderr=subprocess.STDOUT)
         logger.info('diarize: %s: Diarization file written.', self.file_id)
 
     def seg_to_dict(self):
