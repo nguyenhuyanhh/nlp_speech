@@ -43,6 +43,4 @@ data/
     ...
 ```
 
-## To-dos
-
-If google-cloud supports Cloud Speech API, move code to that library instead of google-api-python-client
+The user can create any number of `/data*` folders as necessary, e.g. `/data_completed` to store completed results and `/data_err` to store incompleted results with errors to redo.
