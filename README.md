@@ -58,3 +58,13 @@ Syntax: python data.py (option) (path)
         -co, --clear-old: Clear intermediate files from (path). (path) must follow old /data structure
     path: Path to the specified folder
 ```
+
+### `speech.py`
+
+```
+Syntax: python speech.py (option)
+    option:
+        -d, --diarize, --default: Run the diarization pipeline, results in transcript/googleapi/*-diarize.txt and transcript/textgrid/*-diarize.TextGrid
+        -s, --sync: Run the synchronous pipeline, results in transcript/googleapi/*-sync.txt
+        -a, --async: Run the asynchronous pipeline, results in transcript/googleapi/*-async.txt
+```

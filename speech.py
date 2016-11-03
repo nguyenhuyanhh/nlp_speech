@@ -3,8 +3,8 @@ import os
 import time
 import logging
 import subprocess
+import sys
 from decimal import Decimal
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from googleapiclient.discovery import build
 from oauth2client.service_account import ServiceAccountCredentials
@@ -403,27 +403,27 @@ def diarize_pipeline(file_id):
     return file_id
 
 
-def sync_workflow():
-    """Synchronous processing workflow for /data."""
+def workflow(method='diarize'):
     id_list = [file_id for file_id in os.listdir(
         data_dir) if os.path.isdir(os.path.join(data_dir, file_id))]
-    for file_id in id_list:
-        sync_pipeline(file_id)
-
-
-def async_workflow(max_workers=20):
-    """Asynchronous multi-processing workflow for /data."""
-    future_list = list()
-    id_list = [file_id for file_id in os.listdir(
-        data_dir) if os.path.isdir(os.path.join(data_dir, file_id))]
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+    if method not in ['diarize', 'sync', 'async']:
+        logger.info('Invalid workflow method. Exiting.')
+    elif method == 'diarize':
         for file_id in id_list:
-            future_list.append(executor.submit(async_pipeline, file_id))
+            diarize_pipeline(file_id)
+    elif method == 'sync':
+        for file_id in id_list:
+            sync_pipeline(file_id)
+    else:
+        for file_id in id_list:
+            async_pipeline(file_id)
 
-
-def diarize_workflow():
-    """Synchronous diarization workflow for /data."""
-    id_list = [file_id for file_id in os.listdir(
-        data_dir) if os.path.isdir(os.path.join(data_dir, file_id))]
-    for file_id in id_list:
-        diarize_pipeline(file_id)
+if __name__ == '__main__':
+    if sys.argv[1] in ['-d', '--default', '--diarize']:
+        workflow(method='diarize')
+    elif sys.argv[1] in ['-s', '--sync']:
+        workflow(method='sync')
+    elif sys.argv[1] in ['-a', '--async']:
+        workflow(method='async')
+    else:
+        logger.info('Invalid arguments. Exiting.')
