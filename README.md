@@ -14,7 +14,8 @@ This library is developed using Python 2.7.12 on Lubuntu 16.04.1 LTS. The Java e
 1. Clone the project
 1. Install SoX with mp3 support: `$ sudo apt-get install sox libsox-fmt-all`
 1. Install Python dependencies: `$ sudo pip install -r requirements.txt`
-1. Run the main program: `$ python main.py`
+1. Import data: `$ python data.py -i /path/to/flat/data`
+1. Run the processing pipeline: `$ python speech.py --default`
 
 ## Data folder structure
 
@@ -44,3 +45,16 @@ data/
 ```
 
 The user can create any number of `/data*` folders as necessary, e.g. `/data_completed` to store completed results and `/data_err` to store incompleted results with errors to redo.
+
+## Documentation
+
+### `data.py`
+
+```
+Syntax: python data.py (option) (path)
+    option:
+        -i, --import: Import (path) into /data. (path) must only contain audio files i.e. must be flat
+        -c, --clear: Clear intermediate files from (path). (path) must follow current /data structure (prescribed above/ in README)
+        -co, --clear-old: Clear intermediate files from (path). (path) must follow old /data structure
+    path: Path to the specified folder
+```

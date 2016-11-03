@@ -1,6 +1,7 @@
 import shutil
 import os
 import logging
+import sys
 
 from slugify import slugify
 
@@ -9,13 +10,13 @@ AUDIO_EXTS = ['.wav', '.mp3']
 # initialize path and logger
 cur_dir = os.path.dirname(os.path.realpath(__name__))
 data_dir = os.path.join(cur_dir, 'data/')
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
-def flat_data(path):
+def import_folder(path):
     """
-    Structure a flat folder into /data.
+    Import a flat folder into /data.
     Flat folder only contains speech files and no other subfolders.
     """
     for file in os.listdir(path):
@@ -74,3 +75,15 @@ def clear_intermediate_old(path):
         shutil.rmtree(diarize_dir, ignore_errors=True)
         shutil.rmtree(old_googleapi_dir, ignore_errors=True)
         logger.info('Processed %s', dir)
+
+if __name__ == '__main__':
+    if len(sys.argv) != 3:
+        logger.info('Invalid arguments. Exiting.')
+    elif (sys.argv[1] in ['-i', '--import']):
+        import_folder(sys.argv[2])
+    elif (sys.argv[1] in ['-c', '--clear']):
+        clear_intermediate(sys.argv[2])
+    elif (sys.argv[1] == ['-co', '--clear-old']):
+        clear_intermediate_old(sys.argv[2])
+    else:
+        logger.info('Invalid arguments. Exiting.')
