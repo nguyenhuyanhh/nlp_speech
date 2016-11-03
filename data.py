@@ -51,29 +51,27 @@ def clear_intermediate(path):
         logger.info('Processed %s', dir)
 
 
-def clear_intermediate_old(path):
+def migrate(path):
     """
-    Clear all intermediate files (resampled and diarization) from a path.
-    Path must contain all folders with the old structure
+    Convert all folders in a path from old to new structure.
+    Path must contain all folders with the old structure.
     """
     for dir in os.listdir(path):
         working_dir = os.path.join(path, dir)
         resampled_dir = os.path.join(working_dir, 'resampled/')
         diarize_dir = os.path.join(working_dir, 'diarization/')
         old_googleapi_dir = os.path.join(working_dir, 'googleapi/')
-        googleapi_dir = os.path.join(working_dir, 'transcript/googleapi/')
-        textgrid_dir = os.path.join(working_dir, 'transcript/textgrid/')
-        os.makedirs(googleapi_dir)
+        trans_dir = os.path.join(working_dir, 'transcript/')
+        new_googleapi_dir = os.path.join(trans_dir, 'googleapi/')
+        textgrid_dir = os.path.join(trans_dir, 'textgrid/')
         os.makedirs(textgrid_dir)
+        shutil.move(old_googleapi_dir, trans_dir)
         old_trans = os.path.join(diarize_dir, dir + '-diarize.txt')
-        new_trans = os.path.join(googleapi_dir, dir + '-diarize.txt')
+        new_trans = os.path.join(new_googleapi_dir, dir + '-diarize.txt')
         shutil.move(old_trans, new_trans)
         old_textgrid = os.path.join(diarize_dir, dir + '-diarize.TextGrid')
         new_textgrid = os.path.join(textgrid_dir, dir + '-diarize.TextGrid')
         shutil.move(old_textgrid, new_textgrid)
-        shutil.rmtree(resampled_dir, ignore_errors=True)
-        shutil.rmtree(diarize_dir, ignore_errors=True)
-        shutil.rmtree(old_googleapi_dir, ignore_errors=True)
         logger.info('Processed %s', dir)
 
 if __name__ == '__main__':
@@ -83,7 +81,7 @@ if __name__ == '__main__':
         import_folder(sys.argv[2])
     elif (sys.argv[1] in ['-c', '--clear']):
         clear_intermediate(sys.argv[2])
-    elif (sys.argv[1] == ['-co', '--clear-old']):
-        clear_intermediate_old(sys.argv[2])
+    elif (sys.argv[1] in ['-m', '--migrate']):
+        migrate(sys.argv[2])
     else:
         logger.info('Invalid arguments. Exiting.')

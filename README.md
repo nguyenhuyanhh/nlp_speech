@@ -54,8 +54,8 @@ The user can create any number of `/data*` folders as necessary, e.g. `/data_com
 Syntax: python data.py (option) (path)
     option:
         -i, --import: Import (path) into /data. (path) must only contain audio files i.e. must be flat
-        -c, --clear: Clear intermediate files from (path). (path) must follow current /data structure (prescribed above/ in README)
-        -co, --clear-old: Clear intermediate files from (path). (path) must follow old /data structure
+        -m, --migrate: Migrate (path) from old /data structure to new /data structure.
+        -c, --clear: Clear intermediate files from (path). (path) must follow /data structure (prescribed above/ in README)
     path: Path to the specified folder
 ```
 

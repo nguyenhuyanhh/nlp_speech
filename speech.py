@@ -31,11 +31,13 @@ storage_service = build('storage', 'v1', credentials=credentials)
 objects = storage_service.objects()
 bucket_name = 'speech-recognition-146903.appspot.com'
 
-# initialize logger
+# initialize and silence loggers
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 logger_oauth = logging.getLogger('oauth2client')
 logger_oauth.setLevel(logging.ERROR)
+logger_googleapi = logging.getLogger('googleapiclient')
+logger_googleapi.setLevel(logging.ERROR)
 
 
 class Speech():
