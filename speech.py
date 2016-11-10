@@ -410,15 +410,32 @@ def workflow(method='diarize'):
         data_dir) if os.path.isdir(os.path.join(data_dir, file_id))]
     if method not in ['diarize', 'sync', 'async']:
         logger.info('Invalid workflow method. Exiting.')
+        return
     elif method == 'diarize':
         for file_id in id_list:
-            diarize_pipeline(file_id)
+            try:
+                diarize_pipeline(file_id)
+            except:
+                logger.error('diarize_pipeline: %s: Error occured.',
+                             file_id, exc_info=1)
+                continue
     elif method == 'sync':
         for file_id in id_list:
-            sync_pipeline(file_id)
+            try:
+                sync_pipeline(file_id)
+            except:
+                logger.error('sync_pipeline: %s: Error occured.',
+                             file_id, exc_info=1)
+                continue
     else:
         for file_id in id_list:
-            async_pipeline(file_id)
+            try:
+                async_pipeline(file_id)
+            except:
+                logger.error('async_pipeline: %s: Error occured.',
+                             file_id, exc_info=1)
+                continue
+    logger.info('Workflow completed.')
 
 if __name__ == '__main__':
     if sys.argv[1] in ['-d', '--default', '--diarize']:
