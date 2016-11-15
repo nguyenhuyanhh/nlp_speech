@@ -2,7 +2,7 @@ import shutil
 import os
 import logging
 import sys
-from decimal import Decimal
+import wave
 
 from slugify import slugify
 
@@ -21,7 +21,7 @@ def import_folder(path):
     Flat folder only contains speech files and no other subfolders.
     """
     for file in os.listdir(path):
-        if (os.path.splitext(file)[1] in AUDIO_EXTS):
+        if os.path.splitext(file)[1] in AUDIO_EXTS:
             file_path = os.path.join(path, file)
             file_id = slugify(file)
             working_dir = os.path.join(data_dir, file_id + '/')
@@ -31,7 +31,9 @@ def import_folder(path):
             trans_dir = os.path.join(working_dir, 'transcript/')
             googleapi_dir = os.path.join(trans_dir, 'googleapi/')
             textgrid_dir = os.path.join(trans_dir, 'textgrid/')
-            for dir in [raw_dir, resampled_dir, diarize_dir, trans_dir, googleapi_dir, textgrid_dir]:
+            dir_list = [raw_dir, resampled_dir,
+                        diarize_dir, trans_dir, googleapi_dir, textgrid_dir]
+            for dir in dir_list:
                 if not os.path.exists(dir):
                     os.makedirs(dir)
             shutil.copy2(file_path, raw_dir)
@@ -90,13 +92,15 @@ def stats(path):
 
     # get total time and no of file_ids processed
     count = 0
-    time = Decimal(0.0)
+    time = 0
     for dir in completed_dirs:
         resampled_dir = os.path.join(dir, 'resampled/')
-        if (len(os.listdir(resampled_dir)) == 1):
+        if len(os.listdir(resampled_dir)) == 1:
             resampled_file = os.path.join(
                 resampled_dir, os.listdir(resampled_dir)[0])
-            time += Decimal(os.path.getsize(resampled_file)) / 32000
+            f = wave.open(resampled_file, 'r')
+            time += f.getnframes() / float(f.getframerate())
+            f.close()
             count += 1
 
     # convert to human readable times

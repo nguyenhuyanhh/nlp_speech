@@ -4,6 +4,7 @@ import time
 import logging
 import subprocess
 import sys
+import wave
 from decimal import Decimal
 
 from googleapiclient.discovery import build
@@ -92,7 +93,10 @@ class Speech():
         return os.path.exists(self.textgrid)
 
     def get_duration(self):
-        return Decimal(os.path.getsize(self.resampled_file)) / 32000
+        f = wave.open(self.resampled_file, 'r')
+        duration = f.getnframes() / float(f.getframerate())
+        f.close()
+        return duration
 
     def convert(self):
         """Resample file_id to 16kHz, 1 channel, 16 bit wav."""
