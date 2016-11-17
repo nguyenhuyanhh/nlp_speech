@@ -53,10 +53,10 @@ class Speech():
         self.raw_file = os.path.join(self.raw_dir, raw_file)
         self.resampled_dir = os.path.join(self.working_dir, 'resampled/')
         self.resampled_file = os.path.join(
-            self.resampled_dir, self.file_id + '-resampled.wav')
+            self.resampled_dir, self.file_id + '.wav')
         self.diarize_dir = os.path.join(self.working_dir, 'diarization/')
         self.diarize_file = os.path.join(
-            self.diarize_dir, self.file_id + '-diarize.seg')
+            self.diarize_dir, self.file_id + '.seg')
         self.trans_dir = os.path.join(self.working_dir, 'transcript/')
         self.googleapi_dir = os.path.join(self.trans_dir, 'googleapi/')
         self.textgrid_dir = os.path.join(self.trans_dir, 'textgrid/')
@@ -65,9 +65,9 @@ class Speech():
         self.trans_async = os.path.join(
             self.googleapi_dir, self.file_id + '-async.txt')
         self.trans_diarize = os.path.join(
-            self.googleapi_dir, self.file_id + '-diarize.txt')
+            self.googleapi_dir, self.file_id + '.txt')
         self.textgrid = os.path.join(
-            self.textgrid_dir, self.file_id + '-diarize.TextGrid')
+            self.textgrid_dir, self.file_id + '.TextGrid')
         self.async_max_retries = 10
         self.async_retry_interval = 30
 
@@ -94,7 +94,7 @@ class Speech():
 
     def get_duration(self):
         f = wave.open(self.resampled_file, 'r')
-        duration = f.getnframes() / float(f.getframerate())
+        duration = Decimal(f.getnframes()) / f.getframerate()
         f.close()
         return duration
 

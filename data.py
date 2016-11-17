@@ -63,18 +63,28 @@ def migrate(path):
         working_dir = os.path.join(path, dir)
         resampled_dir = os.path.join(working_dir, 'resampled/')
         diarize_dir = os.path.join(working_dir, 'diarization/')
-        old_googleapi_dir = os.path.join(working_dir, 'googleapi/')
         trans_dir = os.path.join(working_dir, 'transcript/')
-        new_googleapi_dir = os.path.join(trans_dir, 'googleapi/')
+        googleapi_dir = os.path.join(trans_dir, 'googleapi/')
         textgrid_dir = os.path.join(trans_dir, 'textgrid/')
-        os.makedirs(textgrid_dir)
-        shutil.move(old_googleapi_dir, trans_dir)
-        old_trans = os.path.join(diarize_dir, dir + '-diarize.txt')
-        new_trans = os.path.join(new_googleapi_dir, dir + '-diarize.txt')
-        shutil.move(old_trans, new_trans)
-        old_textgrid = os.path.join(diarize_dir, dir + '-diarize.TextGrid')
-        new_textgrid = os.path.join(textgrid_dir, dir + '-diarize.TextGrid')
-        shutil.move(old_textgrid, new_textgrid)
+
+        old_resampled = os.path.join(resampled_dir, dir + '-resampled.wav')
+        new_resampled = os.path.join(resampled_dir, dir + '.wav')
+        old_diarize = os.path.join(diarize_dir, dir + '-diarize.seg')
+        new_diarize = os.path.join(diarize_dir, dir + '.seg')
+        old_trans = os.path.join(googleapi_dir, dir + '-diarize.txt')
+        new_trans = os.path.join(googleapi_dir, dir + '.txt')
+        old_textgrid = os.path.join(textgrid_dir, dir + '-diarize.TextGrid')
+        new_textgrid = os.path.join(textgrid_dir, dir + '.TextGrid')
+
+        if os.path.exists(old_resampled):
+            os.rename(old_resampled, new_resampled)
+        if os.path.exists(old_diarize):
+            os.rename(old_diarize, new_diarize)
+        if os.path.exists(old_trans):
+            os.rename(old_trans, new_trans)
+        if os.path.exists(old_textgrid):
+            os.rename(old_textgrid, new_textgrid)
+
         logger.info('Processed %s', dir)
 
 
