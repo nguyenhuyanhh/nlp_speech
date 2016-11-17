@@ -65,7 +65,7 @@ Syntax: python data.py (option) (path)
 ```
 Syntax: python speech.py (option)
     option:
-        -d, --diarize, --default: Run the diarization pipeline, results in transcript/googleapi/*-diarize.txt and transcript/textgrid/*-diarize.TextGrid
+        -d, --diarize, --default: Run the diarization pipeline, results in transcript/googleapi/*.txt and transcript/textgrid/*.TextGrid
         -s, --sync: Run the synchronous pipeline, results in transcript/googleapi/*-sync.txt
         -a, --async: Run the asynchronous pipeline, results in transcript/googleapi/*-async.txt
 ```
