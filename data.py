@@ -136,7 +136,7 @@ def print_completed(path):
             completed_dirs.add(root)
 
     count = 0
-    for dir in completed_dirs:
+    for dir in sorted(completed_dirs):
         textgrid_dir = os.path.join(dir, 'transcript/textgrid')
         if len(os.listdir(textgrid_dir)) == 1:
             print(dir)
