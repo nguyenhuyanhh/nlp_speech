@@ -122,6 +122,28 @@ def stats(path):
     logger.info('Processed %s files, total time %s hours %s minutes %s seconds.',
                 count, hours, minutes, seconds)
 
+
+def print_completed(path):
+    """
+    Print a list of completed file_ids in a path.
+    Useful to check /data.
+    """
+    # get list of folders that conforms to /data structure
+    key = set(['raw', 'resampled', 'diarization', 'transcript'])
+    completed_dirs = set()
+    for root, dirs, files in os.walk(path):
+        if key.issubset(dirs):
+            completed_dirs.add(root)
+
+    count = 0
+    for dir in completed_dirs:
+        textgrid_dir = os.path.join(dir, 'transcript/textgrid')
+        if len(os.listdir(textgrid_dir) == 1):
+            print(dir)
+            count += 1
+
+    logger.info('%s file_ids completed.', count)
+
 if __name__ == '__main__':
     if len(sys.argv) != 3:
         logger.info('Invalid arguments. Exiting.')
@@ -133,5 +155,7 @@ if __name__ == '__main__':
         migrate(sys.argv[2])
     elif (sys.argv[1] in ['-s', '--stats']):
         stats(sys.argv[2])
+    elif (sys.argv[1] in ['-p', '--print-completed']):
+        print_completed(sys.argv[2])
     else:
         logger.info('Invalid arguments. Exiting.')

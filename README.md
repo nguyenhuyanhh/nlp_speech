@@ -57,6 +57,7 @@ Syntax: python data.py (option) (path)
         -m, --migrate: Migrate (path) from old /data structure to new /data structure
         -c, --clear: Clear intermediate files from (path). (path) must follow /data structure (prescribed above/ in README)
         -s, --stats: Output general stats about (path). Most useful for completed folders
+        -p, --print-completed: Output completed file_ids from path. Most usefull for /data
     path: Path to the specified folder
 ```
 
