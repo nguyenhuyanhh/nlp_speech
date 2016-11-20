@@ -1,15 +1,17 @@
 import base64
-import os
-import time
+import json
 import logging
+import os
+import random
 import subprocess
 import sys
+import time
 import wave
 from decimal import Decimal
 
+import sox
 from googleapiclient.discovery import build
 from oauth2client.service_account import ServiceAccountCredentials
-import sox
 
 # initialize paths
 cur_dir = os.path.dirname(os.path.realpath(__name__))
@@ -33,8 +35,9 @@ objects = storage_service.objects()
 bucket_name = 'speech-recognition-146903.appspot.com'
 
 # initialize and silence loggers
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+logger_sox = logging.getLogger()
+logger_sox.disabled = True
 logger_oauth = logging.getLogger('oauth2client')
 logger_oauth.setLevel(logging.ERROR)
 logger_googleapi = logging.getLogger('googleapiclient')
@@ -68,6 +71,13 @@ class Speech():
             self.googleapi_dir, self.file_id + '.txt')
         self.textgrid = os.path.join(
             self.textgrid_dir, self.file_id + '.TextGrid')
+        self.temp_dir = os.path.join(self.working_dir, 'temp/')
+        if not os.path.exists(self.temp_dir):
+            os.makedirs(self.temp_dir)
+        self.temp_seg_to_dict = os.path.join(self.temp_dir, 'seg_to_dict.json')
+        self.temp_dict_to_wav = os.path.join(self.temp_dir, 'dict_to_wav.json')
+        self.temp_wav_to_trans = os.path.join(
+            self.temp_dir, 'wav_to_trans.json')
         self.async_max_retries = 10
         self.async_retry_interval = 30
 
@@ -79,6 +89,15 @@ class Speech():
 
     def has_diarize(self):
         return os.path.exists(self.diarize_file)
+
+    def has_temp_seg_to_dict(self):
+        return os.path.exists(self.temp_seg_to_dict)
+
+    def has_temp_dict_to_wav(self):
+        return os.path.exists(self.temp_dict_to_wav)
+
+    def has_temp_wav_to_trans(self):
+        return os.path.exists(self.temp_wav_to_trans)
 
     def has_trans_sync(self):
         return os.path.exists(self.trans_sync)
@@ -105,6 +124,15 @@ class Speech():
         tfm.build(self.raw_file, self.resampled_file)
         logger.info('convert: %s: Resampled file written.', self.file_id)
 
+    def upload(self):
+        """Upload resampled file to Google Cloud Storage."""
+        request_body = {
+            'name': self.file_id,
+        }
+        objects.insert(bucket=bucket_name, body=request_body,
+                       media_body=self.resampled_file).execute()
+        logger.info('upload: %s: File uploaded.', self.file_id)
+
     def diarize(self):
         """LIUM diarization of file_id."""
         # silent output
@@ -112,7 +140,11 @@ class Speech():
         args = ['java', '-Xmx2048m', '-jar', lium_path, '--fInputMask=' +
                 self.resampled_file, '--sOutputMask=' + self.diarize_file, self.file_id]
         subprocess.call(args, stdout=fnull, stderr=subprocess.STDOUT)
-        logger.info('diarize: %s: Diarization file written.', self.file_id)
+        if self.has_diarize():
+            logger.info('diarize: %s: Diarization file written.', self.file_id)
+        else:  # likely that resampled file is corrupted
+            self.convert()
+            self.diarize()
 
     def seg_to_dict(self):
         """Convert LIUM output to Python-friendly input."""
@@ -126,32 +158,40 @@ class Speech():
                     start_time = Decimal(words[2]) / 100
                     end_time = (Decimal(words[2]) + Decimal(words[3])) / 100
                     diarize_dict[int(words[2])] = (
-                        speaker_gender, start_time, end_time)
-        return diarize_dict
+                        speaker_gender, str(start_time), str(end_time))
+        with open(self.temp_seg_to_dict, 'w') as w:
+            json.dump(diarize_dict, w, sort_keys=True, indent=4)
+        logger.info('seg_to_dict: %s: Completed.', self.file_id)
 
-    def upload(self):
-        """Upload resampled file to Google Cloud Storage."""
-        request_body = {
-            'name': self.file_id,
-        }
-        objects.insert(bucket=bucket_name, body=request_body,
-                       media_body=self.resampled_file).execute()
-        logger.info('upload: %s: File uploaded.', self.file_id)
-
-    def recognize_diarize(self):
-        """Synchronously recognize diarized parts of file_id."""
+    def split_resampled(self):
+        """Split resampled file according to LIUM output."""
         count = 1
-        diarize_dict = self.seg_to_dict()
-        for key in sorted(diarize_dict.keys()):
-            # split resampled file according to diarization specs
-            value = diarize_dict[key]
+        with open(self.temp_seg_to_dict, 'r') as f:
+            diarize_dict = json.load(f)
+        sorted_keys = sorted([int(x) for x in diarize_dict.keys()])
+        for key in sorted_keys:
+            value = diarize_dict[str(key)]
             diar_part_filename = '{}-{}.wav'.format(count, value[0])
             diar_part_path = os.path.join(self.diarize_dir, diar_part_filename)
             tfm = sox.Transformer()
-            tfm.trim(value[1], value[2])
+            tfm.trim(Decimal(value[1]), Decimal(value[2]))
             tfm.build(self.resampled_file, diar_part_path)
+            diarize_dict[str(key)] = (
+                value[0], value[1], value[2], diar_part_path)
+            count += 1
+            logger.info('split_resampled: Done with key %s', key)
+        with open(self.temp_dict_to_wav, 'w') as w:
+            json.dump(diarize_dict, w, sort_keys=True, indent=4)
+        logger.info('split_resampled: %s: Completed.', self.file_id)
 
-            # synchronously recognize, then update specs
+    def recognize_diarize(self):
+        """Synchronously recognize diarized parts of file_id."""
+        with open(self.temp_dict_to_wav, 'r') as f:
+            diarize_dict = json.load(f)
+        sorted_keys = sorted([int(x) for x in diarize_dict.keys()])
+        for key in sorted_keys:
+            value = diarize_dict[str(key)]
+            diar_part_path = value[3]
             with open(diar_part_path, 'rb') as f:
                 content = base64.b64encode(f.read()).decode('utf-8')
             request_body = {
@@ -164,7 +204,23 @@ class Speech():
                     "sampleRate": 16000
                 },
             }
-            sync_response = speech.syncrecognize(body=request_body).execute()
+
+            # exponential backoff in case it fails
+            attempt = 1
+            while attempt <= 5:
+                try:
+                    sync_response = speech.syncrecognize(
+                        body=request_body).execute()
+                    break
+                except:
+                    time.sleep(2**attempt + random.randint(0, 1000) / 1000)
+                    attempt += 1
+                    logger.info('recognize_diarize: Retrying key &s', key)
+            if attempt == 6:
+                logger.info(
+                    'recognize_diarize: Failed to acquire transcription for key %s after 5 attempts', key)
+                new_value = (value[0], value[1], value[2], '')
+
             if ('results' not in sync_response.keys()):
                 new_value = (value[0], value[1], value[2], '')
             else:
@@ -173,17 +229,27 @@ class Speech():
                 for item in result_list:
                     trans_list.append(item['alternatives'][0]['transcript'])
                 result_str = ' '.join(trans_list)
-                new_value = (value[0], value[1], value[2], result_str)
-            diarize_dict[key] = new_value
-            count += 1
+                new_value = (value[0], value[1], value[2],
+                             result_str.encode('utf-8'))
+            diarize_dict[str(key)] = new_value
+            logger.info('recognize_diarize: Done with key %s', key)
+        with open(self.temp_wav_to_trans, 'w') as w:
+            json.dump(diarize_dict, w, sort_keys=True, indent=4)
+        logger.info('recognize_diarize: %s: Completed.', self.file_id)
+
+    def write_transcript(self):
+        """Write back transcript and TextGrid for file_id."""
+        with open(self.temp_wav_to_trans, 'r') as f:
+            diarize_dict = json.load(f)
+        sorted_keys = sorted([int(x) for x in diarize_dict.keys()])
 
         # write back transcript
         with open(self.trans_diarize, 'w') as w:
-            for key in sorted(diarize_dict.keys()):
-                value = diarize_dict[key]
+            for key in sorted_keys:
+                value = diarize_dict[str(key)]
                 w.write(value[3] + '\n')
             logger.info(
-                'recognize_diarize: %s: Transcript written.', self.file_id)
+                'write_transcript: %s: Transcript written.', self.file_id)
 
         # write back textgrid
         with open(self.textgrid, 'w') as w:
@@ -197,50 +263,15 @@ class Speech():
                 self.get_duration(), len(diarize_dict)))
             # items
             count = 1
-            for key in sorted(diarize_dict.keys()):
-                value = diarize_dict[key]
+            for key in sorted_keys:
+                value = diarize_dict[str(key)]
                 w.write('        intervals [{}]\n'.format(count))
                 w.write('            xmin = {}\n'.format(value[1]))
                 w.write('            xmax = {}\n'.format(value[2]))
                 w.write('            text = "{}"\n'.format(value[3]))
                 count += 1
             logger.info(
-                'recognize_diarize: %s: TextGrid written.', self.file_id)
-
-    def textgrid_from_seg_trans(self):
-        """Output a .TextGrid file from existing diarization and recognition"""
-        diarize_dict = self.seg_to_dict()
-        # output diarization specs with transcript
-        with open(self.trans_diarize, 'r') as f:
-            trans_line_list = f.read().split('\n')
-        index = 0
-        for key in sorted(diarize_dict.keys()):
-            value = diarize_dict[key]
-            new_value = (value[0], value[1], value[2], trans_line_list[index])
-            diarize_dict[key] = new_value
-            index += 1
-
-        # output textgrid
-        with open(self.textgrid, 'w') as w:
-            # header
-            w.write('File type = "ooTextFile"\nObject class = "TextGrid"\n\n')
-            w.write('xmin = 0.0\nxmax = {}\ntiers? <exists>\nsize = 1\n'.format(
-                self.get_duration()))
-            w.write('item []:\n    item[1]:\n        class = "IntervalTier"\n')
-            w.write('        name = "default"\n        xmin = 0.0\n')
-            w.write('        xmax = {}\n        intervals: size = {}\n'.format(
-                self.get_duration(), len(diarize_dict)))
-            # items
-            count = 1
-            for key in sorted(diarize_dict.keys()):
-                value = diarize_dict[key]
-                w.write('        intervals [{}]\n'.format(count))
-                w.write('            xmin = {}\n'.format(value[1]))
-                w.write('            xmax = {}\n'.format(value[2]))
-                w.write('            text = "{}"\n'.format(value[3]))
-                count += 1
-            logger.info(
-                'textgrid_from_seg_trans: %s: TextGrid written.', self.file_id)
+                'write_transcript: %s: TextGrid written.', self.file_id)
 
     def recognize_sync(self):
         """
@@ -323,6 +354,7 @@ def sync_pipeline(file_id):
     if (not s.has_raw()):
         logger.info(
             'convert: %s: Raw file does not exist. No further action.', file_id)
+        return None
     elif (s.has_resampled()):
         logger.info(
             'convert: %s: Resampled file exists. No further action.', file_id)
@@ -351,6 +383,7 @@ def async_pipeline(file_id):
     if (not s.has_raw()):
         logger.info(
             'convert: %s: Raw file does not exist. No further action.', file_id)
+        return None
     elif (s.has_resampled()):
         logger.info(
             'convert: %s: Resampled file exists. No further action.', file_id)
@@ -379,32 +412,51 @@ def diarize_pipeline(file_id):
     """Synchronous processing pipeline with diarization for file_id."""
     s = Speech(file_id)
 
+    # check for completion
+    # if not start the process
+    if (s.has_trans_diarize() and s.has_textgrid()):
+        logger.info(
+            'write_transcript: %s: Transcript and TextGrid exists. No further action.', file_id)
+        return file_id
+
     # convert, check for raw and resampled
     if (not s.has_raw()):
         logger.info(
             'convert: %s: Raw file does not exist. No further action.', file_id)
+        return None
     elif (s.has_resampled()):
         logger.info(
             'convert: %s: Resampled file exists. No further action.', file_id)
     else:
         s.convert()
 
-    # diarize and recognize, check for textgrid and transcript
-    if (s.has_textgrid()):
-        logger.info(
-            'recognize_diarize: %s: TextGrid exists. No further action.', file_id)
-    elif (s.has_diarize()):
+    # diarize, check for seg
+    if s.has_diarize():
         logger.info(
             'diarize: %s: Diarization file exists. No further action.', file_id)
-        if (s.has_trans_diarize()):
-            logger.info(
-                'recognize_diarize: %s: Transcript exists. Writing TextGrid.', file_id)
-            s.textgrid_from_seg_trans()
-        else:
-            s.recognize_diarize()
     else:
         s.diarize()
+
+    # seg_to_dict, check for temp
+    if s.has_temp_seg_to_dict():
+        logger.info('seg_to_dict: %s: Previously completed.', file_id)
+    else:
+        s.seg_to_dict()
+
+    # split_resampled, check for temp
+    if s.has_temp_dict_to_wav():
+        logger.info('split_resampled: %s: Previously completed.', file_id)
+    else:
+        s.split_resampled()
+
+    # recognize_diarize, check for temp
+    if s.has_temp_wav_to_trans():
+        logger.info('recognize_diarize: %s: Previously completed.', file_id)
+    else:
         s.recognize_diarize()
+
+    # write transcript
+    s.write_transcript()
 
     return file_id
 

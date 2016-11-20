@@ -15,7 +15,7 @@ This library is developed using Python 2.7.12 on Lubuntu 16.04.1 LTS. The Java e
 1. Install SoX with mp3 support: `$ sudo apt-get install sox libsox-fmt-all`
 1. Install Python dependencies: `$ sudo pip install -r requirements.txt`
 1. Import data: `$ python data.py -i /path/to/flat/data`
-1. Run the processing pipeline: `$ python speech.py --default`
+1. Run the processing pipeline: `$ python speech.py -d`
 
 ## Data folder structure
 
@@ -57,7 +57,7 @@ Syntax: python data.py (option) (path)
         -m, --migrate: Migrate (path) from old /data structure to new /data structure
         -c, --clear: Clear intermediate files from (path). (path) must follow /data structure (prescribed above/ in README)
         -s, --stats: Output general stats about (path). Most useful for completed folders
-        -p, --print-completed: Output completed file_ids from path. Most usefull for /data
+        -p, --print-completed: Output completed file_ids from (path). Most useful for /data
     path: Path to the specified folder
 ```
 

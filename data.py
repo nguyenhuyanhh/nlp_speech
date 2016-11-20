@@ -1,8 +1,9 @@
-import shutil
-import os
 import logging
+import os
+import shutil
 import sys
 import wave
+from decimal import Decimal
 
 from slugify import slugify
 
@@ -102,14 +103,14 @@ def stats(path):
 
     # get total time and no of file_ids processed
     count = 0
-    time = 0
+    time = Decimal(0)
     for dir in completed_dirs:
         resampled_dir = os.path.join(dir, 'resampled/')
         if len(os.listdir(resampled_dir)) == 1:
             resampled_file = os.path.join(
                 resampled_dir, os.listdir(resampled_dir)[0])
             f = wave.open(resampled_file, 'r')
-            time += f.getnframes() / float(f.getframerate())
+            time += Decimal(f.getnframes()) / f.getframerate()
             f.close()
             count += 1
 
