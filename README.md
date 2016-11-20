@@ -39,6 +39,10 @@ data/
                 [file_id 1]-gold.txt # gold standard transcript
             textgrid/    
                 [file_id 1].TextGrid # TextGrid file, to be passed to Praat
+        temp/ # intermediate json dumps of diarize_dict
+            seg_to_dict.json
+            dict_to_wav.json
+            wav_to_trans.json
     [file_id 2]/
         ...
     ...
@@ -55,7 +59,7 @@ Syntax: python data.py (option) (path)
     option:
         -i, --import: Import (path) into /data. (path) must only contain audio files i.e. must be flat
         -m, --migrate: Migrate (path) from old /data structure to new /data structure
-        -c, --clear: Clear intermediate files from (path). (path) must follow /data structure (prescribed above/ in README)
+        -c, --clear: Clear temporary files from (path). Most useful for completed folders
         -s, --stats: Output general stats about (path). Most useful for completed folders
         -p, --print-completed: Output completed file_ids from (path). Most useful for /data
     path: Path to the specified folder

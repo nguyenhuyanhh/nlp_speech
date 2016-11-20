@@ -41,17 +41,21 @@ def import_folder(path):
             logger.info('Processed %s', file_id)
 
 
-def clear_intermediate(path):
+def clear_temp(path):
     """
-    Clear all intermediate files (resampled and diarization) from a path.
-    Path must contain all folders with the structure described in /README.md.
+    Clear all /temp folders from a path.
+    Useful to prepare completed folder for long term storage.
     """
-    for dir in os.listdir(path):
-        working_dir = os.path.join(path, dir)
-        resampled_dir = os.path.join(working_dir, 'resampled/')
-        diarize_dir = os.path.join(working_dir, 'diarization/')
-        shutil.rmtree(resampled_dir, ignore_errors=True)
-        shutil.rmtree(diarize_dir, ignore_errors=True)
+    # get list of folders that conforms to /data structure
+    key = set(['raw', 'resampled', 'diarization', 'transcript', 'temp'])
+    completed_dirs = set()
+    for root, dirs, files in os.walk(path):
+        if key.issubset(dirs):
+            completed_dirs.add(root)
+
+    for dir in completed_dirs:
+        temp_dir = os.path.join(dir, 'temp/')
+        shutil.rmtree(temp_dir, ignore_errors=True)
         logger.info('Processed %s', dir)
 
 
@@ -151,7 +155,7 @@ if __name__ == '__main__':
     elif (sys.argv[1] in ['-i', '--import']):
         import_folder(sys.argv[2])
     elif (sys.argv[1] in ['-c', '--clear']):
-        clear_intermediate(sys.argv[2])
+        clear_temp(sys.argv[2])
     elif (sys.argv[1] in ['-m', '--migrate']):
         migrate(sys.argv[2])
     elif (sys.argv[1] in ['-s', '--stats']):
