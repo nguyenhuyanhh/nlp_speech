@@ -215,13 +215,13 @@ class Speech():
                 except:
                     time.sleep(2**attempt + random.randint(0, 1000) / 1000)
                     attempt += 1
-                    logger.info('recognize_diarize: Retrying key &s', key)
+                    logger.info('recognize_diarize: Retrying key %s', key)
+
             if attempt == 6:
                 logger.info(
                     'recognize_diarize: Failed to acquire transcription for key %s after 5 attempts', key)
                 new_value = (value[0], value[1], value[2], '')
-
-            if ('results' not in sync_response.keys()):
+            elif ('results' not in sync_response.keys()):
                 new_value = (value[0], value[1], value[2], '')
             else:
                 result_list = sync_response['results']
