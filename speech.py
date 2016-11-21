@@ -35,7 +35,9 @@ objects = storage_service.objects()
 bucket_name = 'speech-recognition-146903.appspot.com'
 
 # initialize and silence loggers
+file_handler = logging.FileHandler('speech.log')
 logger = logging.getLogger(__name__)
+logger.addHandler(file_handler)
 logger_sox = logging.getLogger()
 logger_sox.disabled = True
 logger_oauth = logging.getLogger('oauth2client')
