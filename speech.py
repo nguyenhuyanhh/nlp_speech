@@ -247,7 +247,7 @@ class Speech():
         with open(self.trans_diarize, 'w') as w:
             for key in sorted_keys:
                 value = diarize_dict[str(key)]
-                w.write(value[3] + '\n')
+                w.write(value[3].encode('utf-8') + '\n')
             logger.info(
                 'write_transcript: %s: Transcript written.', self.file_id)
 
@@ -268,7 +268,8 @@ class Speech():
                 w.write('        intervals [{}]\n'.format(count))
                 w.write('            xmin = {}\n'.format(value[1]))
                 w.write('            xmax = {}\n'.format(value[2]))
-                w.write('            text = "{}"\n'.format(value[3]))
+                w.write('            text = "{}"\n'.format(
+                    value[3].encode('utf-8')))
                 count += 1
             logger.info(
                 'write_transcript: %s: TextGrid written.', self.file_id)
