@@ -17,6 +17,19 @@ This library is developed using Python 2.7.12 on Lubuntu 16.04.1 LTS. The Java e
 1. Import data: `$ python data.py -i /path/to/flat/data`
 1. Run the processing pipeline: `$ python speech.py -d`
 
+## Library structure
+
+```
+data/       # Data folder
+data*/      # Misc data folders
+lium/       # LIUM jar for diarization
+    LIUM_SpkDiarization-8.4.1.jar 
+key.json    # Google API Service Account JSON key, specific to your account
+data.py     # data operations
+speech.py   # speech recognition operations
+speech.log  # logging
+```
+
 ## Data folder structure
 
 The structure of `/data` is as follows:
@@ -25,21 +38,21 @@ The structure of `/data` is as follows:
 data/
     [file_id 1]/
         raw/
-            [raw_file] # can be in any format, must provide
+            [raw_file]                  # can be in any format, must provide
         resampled/
             [file_id 1].wav
         diarization/
-            [file_id 1].seg # lium output
+            [file_id 1].seg             # lium output
             [diarized .wav files]
         transcript/
             googleapi/
-                [file_id 1].txt # combined transcript from diarized files (default)
-                [file_id 1]-sync.txt # transcript from Cloud Speech API (synchronous)
-                [file_id 1]-async.txt # transcript from Cloud Speech API (asynchronous)
-                [file_id 1]-gold.txt # gold standard transcript
+                [file_id 1].txt         # combined transcript from diarized files (default)
+                [file_id 1]-sync.txt    # transcript from Cloud Speech API (synchronous)
+                [file_id 1]-async.txt   # transcript from Cloud Speech API (asynchronous)
+                [file_id 1]-gold.txt    # gold standard transcript
             textgrid/    
-                [file_id 1].TextGrid # TextGrid file, to be passed to Praat
-        temp/ # intermediate json dumps of diarize_dict
+                [file_id 1].TextGrid    # TextGrid file, to be passed to Praat
+        temp/                           # intermediate json dumps of diarize_dict
             seg_to_dict.json
             dict_to_wav.json
             wav_to_trans.json
