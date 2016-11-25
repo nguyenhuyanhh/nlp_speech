@@ -14,20 +14,37 @@ This library is developed using Python 2.7.12 on Lubuntu 16.04.1 LTS. The Java e
 1. Clone the project
 1. Install SoX with mp3 support: `$ sudo apt-get install sox libsox-fmt-all`
 1. Install Python dependencies: `$ sudo pip install -r requirements.txt`
+1. [Enable](https://support.google.com/googleapi/answer/6158841) Google Cloud Speech, Google Cloud Storage and Google Cloud Storage APIs. Then import your own keys into `/auth` (`key.json` and `api.json`)
 1. Import data: `$ python data.py -i /path/to/flat/data`
 1. Run the processing pipeline: `$ python speech.py -d`
 
 ## Library structure
 
 ```
-data/       # Data folder
-data*/      # Misc data folders
-lium/       # LIUM jar for diarization
+data/           # Data folder
+data*/          # Misc data folders
+lium/           # LIUM jar for diarization
     LIUM_SpkDiarization-8.4.1.jar 
-key.json    # Google API Service Account JSON key, specific to your account
-data.py     # data operations
-speech.py   # speech recognition operations
-speech.log  # logging
+auth/
+    key.json    # Google API Service Account JSON key, specific to your account
+    api.json    # Google API key and storage bucket, specific to your account
+data.py         # data operations
+speech.py       # speech recognition operations
+speech.log      # logging
+```
+
+## Google authentication: `/auth`
+
+The `/auth` folder should contain two files:
+
+- `key.json`, your Service Account key. The instruction to create one is [here](https://support.google.com/googleapi/answer/6158849).
+- `api.json`, containing your [API key](https://support.google.com/googleapi/answer/6158862) (for async debugging) and your [storage bucket](https://cloud.google.com/storage/docs/creating-buckets) (for async also). The format is as follows:
+
+```json
+{
+    "api_key": "...",
+    "bucket_name": "..."
+}
 ```
 
 ## Data folder structure

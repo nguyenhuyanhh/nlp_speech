@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 
+# Auth
+auth/
+
 # Data
 data*/
 *.log
