@@ -10,10 +10,10 @@ from slugify import slugify
 AUDIO_EXTS = ['.wav', '.mp3']
 
 # initialize path and logger
-cur_dir = os.path.dirname(os.path.realpath(__name__))
-data_dir = os.path.join(cur_dir, 'data/')
+CUR_DIR = os.path.dirname(os.path.realpath(__name__))
+DATA_DIR = os.path.join(CUR_DIR, 'data/')
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 def import_folder(path):
@@ -21,11 +21,11 @@ def import_folder(path):
     Import a flat folder into /data.
     Flat folder only contains speech files and no other subfolders.
     """
-    for file in os.listdir(path):
-        if os.path.splitext(file)[1] in AUDIO_EXTS:
-            file_path = os.path.join(path, file)
-            file_id = slugify(file)
-            working_dir = os.path.join(data_dir, file_id + '/')
+    for file_ in os.listdir(path):
+        if os.path.splitext(file_)[1] in AUDIO_EXTS:
+            file_path = os.path.join(path, file_)
+            file_id = slugify(file_)
+            working_dir = os.path.join(DATA_DIR, file_id + '/')
             raw_dir = os.path.join(working_dir, 'raw/')
             resampled_dir = os.path.join(working_dir, 'resampled/')
             diarize_dir = os.path.join(working_dir, 'diarization/')
@@ -34,11 +34,11 @@ def import_folder(path):
             textgrid_dir = os.path.join(trans_dir, 'textgrid/')
             dir_list = [raw_dir, resampled_dir,
                         diarize_dir, trans_dir, googleapi_dir, textgrid_dir]
-            for dir in dir_list:
-                if not os.path.exists(dir):
-                    os.makedirs(dir)
+            for dir_ in dir_list:
+                if not os.path.exists(dir_):
+                    os.makedirs(dir_)
             shutil.copy2(file_path, raw_dir)
-            logger.info('Processed %s', file_id)
+            LOG.info('Processed %s', file_id)
 
 
 def clear_temp(path):
@@ -53,10 +53,10 @@ def clear_temp(path):
         if key.issubset(dirs):
             completed_dirs.add(root)
 
-    for dir in completed_dirs:
-        temp_dir = os.path.join(dir, 'temp/')
+    for dir_ in completed_dirs:
+        temp_dir = os.path.join(dir_, 'temp/')
         shutil.rmtree(temp_dir, ignore_errors=True)
-        logger.info('Processed %s', dir)
+        LOG.info('Processed %s', dir_)
 
 
 def migrate(path):
@@ -64,22 +64,22 @@ def migrate(path):
     Convert all folders in a path from old to new structure.
     Path must contain all folders with the old structure.
     """
-    for dir in os.listdir(path):
-        working_dir = os.path.join(path, dir)
+    for dir_ in os.listdir(path):
+        working_dir = os.path.join(path, dir_)
         resampled_dir = os.path.join(working_dir, 'resampled/')
         diarize_dir = os.path.join(working_dir, 'diarization/')
         trans_dir = os.path.join(working_dir, 'transcript/')
         googleapi_dir = os.path.join(trans_dir, 'googleapi/')
         textgrid_dir = os.path.join(trans_dir, 'textgrid/')
 
-        old_resampled = os.path.join(resampled_dir, dir + '-resampled.wav')
-        new_resampled = os.path.join(resampled_dir, dir + '.wav')
-        old_diarize = os.path.join(diarize_dir, dir + '-diarize.seg')
-        new_diarize = os.path.join(diarize_dir, dir + '.seg')
-        old_trans = os.path.join(googleapi_dir, dir + '-diarize.txt')
-        new_trans = os.path.join(googleapi_dir, dir + '.txt')
-        old_textgrid = os.path.join(textgrid_dir, dir + '-diarize.TextGrid')
-        new_textgrid = os.path.join(textgrid_dir, dir + '.TextGrid')
+        old_resampled = os.path.join(resampled_dir, dir_ + '-resampled.wav')
+        new_resampled = os.path.join(resampled_dir, dir_ + '.wav')
+        old_diarize = os.path.join(diarize_dir, dir_ + '-diarize.seg')
+        new_diarize = os.path.join(diarize_dir, dir_ + '.seg')
+        old_trans = os.path.join(googleapi_dir, dir_ + '-diarize.txt')
+        new_trans = os.path.join(googleapi_dir, dir_ + '.txt')
+        old_textgrid = os.path.join(textgrid_dir, dir_ + '-diarize.TextGrid')
+        new_textgrid = os.path.join(textgrid_dir, dir_ + '.TextGrid')
 
         if os.path.exists(old_resampled):
             os.rename(old_resampled, new_resampled)
@@ -90,7 +90,7 @@ def migrate(path):
         if os.path.exists(old_textgrid):
             os.rename(old_textgrid, new_textgrid)
 
-        logger.info('Processed %s', dir)
+        LOG.info('Processed %s', dir_)
 
 
 def stats(path):
@@ -108,14 +108,14 @@ def stats(path):
     # get total time and no of file_ids processed
     count = 0
     time = Decimal(0)
-    for dir in completed_dirs:
-        resampled_dir = os.path.join(dir, 'resampled/')
+    for dir_ in completed_dirs:
+        resampled_dir = os.path.join(dir_, 'resampled/')
         if len(os.listdir(resampled_dir)) == 1:
             resampled_file = os.path.join(
                 resampled_dir, os.listdir(resampled_dir)[0])
-            f = wave.open(resampled_file, 'r')
-            time += Decimal(f.getnframes()) / f.getframerate()
-            f.close()
+            file_ = wave.open(resampled_file, 'r')
+            time += Decimal(file_.getnframes()) / file_.getframerate()
+            file_.close()
             count += 1
 
     # convert to human readable times
@@ -124,8 +124,8 @@ def stats(path):
     minutes = int(time / 60)
     seconds = time - minutes * 60
 
-    logger.info('Processed %s files, total time %s hours %s minutes %s seconds.',
-                count, hours, minutes, seconds)
+    LOG.info('Processed %s files, total time %s hours %s minutes %s seconds.',
+             count, hours, minutes, seconds)
 
 
 def print_completed(path):
@@ -141,17 +141,17 @@ def print_completed(path):
             completed_dirs.add(root)
 
     count = 0
-    for dir in sorted(completed_dirs):
-        textgrid_dir = os.path.join(dir, 'transcript/textgrid')
+    for dir_ in sorted(completed_dirs):
+        textgrid_dir = os.path.join(dir_, 'transcript/textgrid')
         if len(os.listdir(textgrid_dir)) == 1:
-            print(dir)
+            print dir_
             count += 1
 
-    logger.info('%s file_ids completed.', count)
+    LOG.info('%s file_ids completed.', count)
 
 if __name__ == '__main__':
     if len(sys.argv) != 3:
-        logger.info('Invalid arguments. Exiting.')
+        LOG.info('Invalid arguments. Exiting.')
     elif (sys.argv[1] in ['-i', '--import']):
         import_folder(sys.argv[2])
     elif (sys.argv[1] in ['-c', '--clear']):
@@ -163,4 +163,4 @@ if __name__ == '__main__':
     elif (sys.argv[1] in ['-p', '--print-completed']):
         print_completed(sys.argv[2])
     else:
-        logger.info('Invalid arguments. Exiting.')
+        LOG.info('Invalid arguments. Exiting.')
