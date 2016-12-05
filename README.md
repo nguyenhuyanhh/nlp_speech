@@ -85,8 +85,10 @@ The user can create any number of `/data*` folders as necessary, e.g. `/data_com
 ### `data.py`
 
 ```
-Syntax: python data.py (option) (path)
-    option:
+Syntax: python data.py (routine) (path) (routine-specfic args)
+    routine:
+        -r, --crawl: Crawl (path) for files in certain extensions into /data_crawl.
+            args: extensions to be called separated by spaces (e.g. .wav .mp3)
         -i, --import: Import (path) into /data. (path) must only contain audio files i.e. must be flat
         -m, --migrate: Migrate (path) from old /data structure to new /data structure
         -c, --clear: Clear temporary files from (path). Most useful for completed folders
@@ -103,4 +105,5 @@ Syntax: python speech.py (option)
         -d, --diarize, --default: Run the diarization pipeline, results in transcript/googleapi/*.txt and transcript/textgrid/*.TextGrid
         -s, --sync: Run the synchronous pipeline, results in transcript/googleapi/*-sync.txt
         -a, --async: Run the asynchronous pipeline, results in transcript/googleapi/*-async.txt
+    no option specified: treated as -d
 ```

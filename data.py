@@ -1,3 +1,5 @@
+"""Data operations."""
+
 import logging
 import os
 import shutil
@@ -12,8 +14,25 @@ AUDIO_EXTS = ['.wav', '.mp3']
 # initialize path and logger
 CUR_DIR = os.path.dirname(os.path.realpath(__name__))
 DATA_DIR = os.path.join(CUR_DIR, 'data/')
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
 logging.basicConfig(level=logging.INFO)
 LOG = logging.getLogger(__name__)
+
+
+def crawl_folder(path, ext_list):
+    """
+    Crawl a folder for specific types of file.
+    Copy all such files into /data_crawl.
+    """
+    crawl_dir = os.path.join(CUR_DIR, 'data_crawl/')
+    if not os.path.exists(crawl_dir):
+        os.makedirs(crawl_dir)
+    for root, _, files in os.walk(path):
+        for file_ in files:
+            if os.path.splitext(file_)[1] in ext_list:
+                shutil.copy2(os.path.join(root, file_), crawl_dir)
+                LOG.info('Processed %s', file_)
 
 
 def import_folder(path):
@@ -49,7 +68,7 @@ def clear_temp(path):
     # get list of folders that conforms to /data structure
     key = set(['raw', 'resampled', 'diarization', 'transcript', 'temp'])
     completed_dirs = set()
-    for root, dirs, files in os.walk(path):
+    for root, dirs, _ in os.walk(path):
         if key.issubset(dirs):
             completed_dirs.add(root)
 
@@ -101,7 +120,7 @@ def stats(path):
     # get list of folders that conforms to /data structure
     key = set(['raw', 'resampled', 'diarization', 'transcript'])
     completed_dirs = set()
-    for root, dirs, files in os.walk(path):
+    for root, dirs, _ in os.walk(path):
         if key.issubset(dirs):
             completed_dirs.add(root)
 
@@ -136,7 +155,7 @@ def print_completed(path):
     # get list of folders that conforms to /data structure
     key = set(['raw', 'resampled', 'diarization', 'transcript'])
     completed_dirs = set()
-    for root, dirs, files in os.walk(path):
+    for root, dirs, _ in os.walk(path):
         if key.issubset(dirs):
             completed_dirs.add(root)
 
@@ -150,8 +169,11 @@ def print_completed(path):
     LOG.info('%s file_ids completed.', count)
 
 if __name__ == '__main__':
-    if len(sys.argv) != 3:
-        LOG.info('Invalid arguments. Exiting.')
+    if sys.argv[1] in ['-r', '--crawl']:
+        if len(sys.argv) <= 3:
+            LOG.info('Invalid arguments.')
+        else:
+            crawl_folder(sys.argv[2], sys.argv[3:])
     elif (sys.argv[1] in ['-i', '--import']):
         import_folder(sys.argv[2])
     elif (sys.argv[1] in ['-c', '--clear']):
@@ -163,4 +185,4 @@ if __name__ == '__main__':
     elif (sys.argv[1] in ['-p', '--print-completed']):
         print_completed(sys.argv[2])
     else:
-        LOG.info('Invalid arguments. Exiting.')
+        LOG.info('Invalid arguments.')
