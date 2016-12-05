@@ -1,3 +1,5 @@
+"""Speech operations."""
+
 import base64
 import json
 import logging
@@ -31,6 +33,7 @@ CREDENTIALS = ServiceAccountCredentials.from_json_keyfile_name(
 SPEECH_SERVICE = build('speech', 'v1beta1', credentials=CREDENTIALS)
 SPEECH = SPEECH_SERVICE.speech()
 OPERATIONS = SPEECH_SERVICE.operations()
+OP_BASE_URL = 'https://speech.googleapis.com/v1beta1/operations/'
 STORAGE_SERVICE = build('storage', 'v1', credentials=CREDENTIALS)
 OBJECTS = STORAGE_SERVICE.objects()
 
@@ -44,6 +47,10 @@ logging.getLogger('googleapiclient').setLevel(logging.ERROR)
 
 
 class Speech():
+    """
+    Speech operations on one file_id.
+    Syntax: Speech(file_id)
+    """
 
     def __init__(self, file_id):
         # initialize object, get paths programmatically
@@ -81,39 +88,50 @@ class Speech():
         self.async_retry_interval = 30
 
     def has_raw(self):
+        """Check for raw file."""
         return os.path.exists(self.raw_file)
 
     def has_resampled(self):
+        """Check for resampled file."""
         return os.path.exists(self.resampled_file)
 
     def has_diarize(self):
+        """Check for diarized file."""
         return os.path.exists(self.diarize_file)
 
     def has_temp_seg_to_dict(self):
+        """Check for temporary seg_to_dict.json."""
         return os.path.exists(self.temp_seg_to_dict)
 
     def has_temp_dict_to_wav(self):
+        """Check for temporary dict_to_wav.json."""
         return os.path.exists(self.temp_dict_to_wav)
 
     def has_temp_wav_to_trans(self):
+        """Check for temporary wav_to_trans.json."""
         return os.path.exists(self.temp_wav_to_trans)
 
     def has_trans_sync(self):
+        """Check for synchronous transcription."""
         return os.path.exists(self.trans_sync)
 
     def has_trans_async(self):
+        """Check for asynchronous transcription."""
         return os.path.exists(self.trans_async)
 
     def has_trans_diarize(self):
+        """Check for combined transcription from diarization."""
         return os.path.exists(self.trans_diarize)
 
     def has_textgrid(self):
+        """Check for TextGrid file."""
         return os.path.exists(self.textgrid)
 
     def get_duration(self):
-        f = wave.open(self.resampled_file, 'r')
-        duration = Decimal(f.getnframes()) / f.getframerate()
-        f.close()
+        """Return duration of a wav file."""
+        file_ = wave.open(self.resampled_file, 'r')
+        duration = Decimal(file_.getnframes()) / file_.getframerate()
+        file_.close()
         return duration
 
     def convert(self):
@@ -137,7 +155,8 @@ class Speech():
         # silent output
         fnull = open(os.devnull, 'w')
         args = ['java', '-Xmx2048m', '-jar', LIUM_PATH, '--fInputMask=' +
-                self.resampled_file, '--sOutputMask=' + self.diarize_file, self.file_id]
+                self.resampled_file, '--sOutputMask=' + self.diarize_file,
+                self.file_id]
         subprocess.call(args, stdout=fnull, stderr=subprocess.STDOUT)
         if self.has_diarize():
             LOG.info('diarize: %s: Diarization file written.', self.file_id)
@@ -158,15 +177,15 @@ class Speech():
                     end_time = (Decimal(words[2]) + Decimal(words[3])) / 100
                     diarize_dict[int(words[2])] = (
                         speaker_gender, str(start_time), str(end_time))
-        with open(self.temp_seg_to_dict, 'w') as w:
-            json.dump(diarize_dict, w, sort_keys=True, indent=4)
+        with open(self.temp_seg_to_dict, 'w') as file_out:
+            json.dump(diarize_dict, file_out, sort_keys=True, indent=4)
         LOG.info('seg_to_dict: %s: Completed.', self.file_id)
 
     def split_resampled(self):
         """Split resampled file according to LIUM output."""
         count = 1
-        with open(self.temp_seg_to_dict, 'r') as f:
-            diarize_dict = json.load(f)
+        with open(self.temp_seg_to_dict, 'r') as file_:
+            diarize_dict = json.load(file_)
         sorted_keys = sorted([int(x) for x in diarize_dict.keys()])
         for key in sorted_keys:
             value = diarize_dict[str(key)]
@@ -179,20 +198,20 @@ class Speech():
                 value[0], value[1], value[2], diar_part_path)
             count += 1
             LOG.info('split_resampled: Done with key %s', key)
-        with open(self.temp_dict_to_wav, 'w') as w:
-            json.dump(diarize_dict, w, sort_keys=True, indent=4)
+        with open(self.temp_dict_to_wav, 'w') as file_out:
+            json.dump(diarize_dict, file_out, sort_keys=True, indent=4)
         LOG.info('split_resampled: %s: Completed.', self.file_id)
 
     def recognize_diarize(self):
         """Synchronously recognize diarized parts of file_id."""
-        with open(self.temp_dict_to_wav, 'r') as f:
-            diarize_dict = json.load(f)
+        with open(self.temp_dict_to_wav, 'r') as file_:
+            diarize_dict = json.load(file_)
         sorted_keys = sorted([int(x) for x in diarize_dict.keys()])
         for key in sorted_keys:
             value = diarize_dict[str(key)]
             diar_part_path = value[3]
-            with open(diar_part_path, 'rb') as f:
-                content = base64.b64encode(f.read()).decode('utf-8')
+            with open(diar_part_path, 'rb') as file_:
+                content = base64.b64encode(file_.read()).decode('utf-8')
             request_body = {
                 "audio": {
                     "content": content
@@ -218,7 +237,7 @@ class Speech():
 
             if attempt == 6:
                 LOG.info(
-                    'recognize_diarize: Failed to acquire transcription for key %s after 5 attempts', key)
+                    'recognize_diarize: Failed to transcribe key %s', key)
                 new_value = (value[0], value[1], value[2], '')
             elif 'results' not in sync_response.keys():
                 new_value = (value[0], value[1], value[2], '')
@@ -232,42 +251,46 @@ class Speech():
                              result_str.encode('utf-8'))
             diarize_dict[str(key)] = new_value
             LOG.info('recognize_diarize: Done with key %s', key)
-        with open(self.temp_wav_to_trans, 'w') as w:
-            json.dump(diarize_dict, w, sort_keys=True, indent=4)
+        with open(self.temp_wav_to_trans, 'w') as file_out:
+            json.dump(diarize_dict, file_out, sort_keys=True, indent=4)
         LOG.info('recognize_diarize: %s: Completed.', self.file_id)
 
     def write_transcript(self):
         """Write back transcript and TextGrid for file_id."""
-        with open(self.temp_wav_to_trans, 'r') as f:
-            diarize_dict = json.load(f)
+        with open(self.temp_wav_to_trans, 'r') as file_:
+            diarize_dict = json.load(file_)
         sorted_keys = sorted([int(x) for x in diarize_dict.keys()])
+        intervals = len(diarize_dict)
+        duration = self.get_duration()
 
         # write back transcript
-        with open(self.trans_diarize, 'w') as w:
+        with open(self.trans_diarize, 'w') as file_out:
             for key in sorted_keys:
                 value = diarize_dict[str(key)]
-                w.write(value[3].encode('utf-8') + '\n')
+                file_out.write(value[3].encode('utf-8') + '\n')
             LOG.info(
                 'write_transcript: %s: Transcript written.', self.file_id)
 
         # write back textgrid
-        with open(self.textgrid, 'w') as w:
+        with open(self.textgrid, 'w') as file_out:
             # header
-            w.write('File type = "ooTextFile"\nObject class = "TextGrid"\n\n')
-            w.write('xmin = 0.0\nxmax = {}\ntiers? <exists>\nsize = 1\n'.format(
-                self.get_duration()))
-            w.write('item []:\n    item[1]:\n        class = "IntervalTier"\n')
-            w.write('        name = "default"\n        xmin = 0.0\n')
-            w.write('        xmax = {}\n        intervals: size = {}\n'.format(
-                self.get_duration(), len(diarize_dict)))
+            file_out.write('File type = "ooTextFile"\n')
+            file_out.write('Object class = "TextGrid"\n\n')
+            file_out.write('xmin = 0.0\nxmax = {}\n'.format(duration))
+            file_out.write('tiers? <exists>\nsize = 1\nitem []:\n')
+            file_out.write('    item[1]:\n        class = "IntervalTier"\n')
+            file_out.write('        name = "default"\n')
+            file_out.write('        xmin = 0.0\n')
+            file_out.write('        xmax = {}\n'.format(duration))
+            file_out.write('        intervals: size = {}\n'.format(intervals))
             # items
             count = 1
             for key in sorted_keys:
                 value = diarize_dict[str(key)]
-                w.write('        intervals [{}]\n'.format(count))
-                w.write('            xmin = {}\n'.format(value[1]))
-                w.write('            xmax = {}\n'.format(value[2]))
-                w.write('            text = "{}"\n'.format(
+                file_out.write('        intervals [{}]\n'.format(count))
+                file_out.write('            xmin = {}\n'.format(value[1]))
+                file_out.write('            xmax = {}\n'.format(value[2]))
+                file_out.write('            text = "{}"\n'.format(
                     value[3].encode('utf-8')))
                 count += 1
             LOG.info(
@@ -279,8 +302,8 @@ class Speech():
         Synchronously recognize file_id. Return transcript of resampled file.
         """
         # construct json request
-        with open(self.resampled_file, 'rb') as f:
-            content = base64.b64encode(f.read()).decode('utf-8')
+        with open(self.resampled_file, 'rb') as file_:
+            content = base64.b64encode(file_.read()).decode('utf-8')
         request_body = {
             "audio": {
                 "content": content
@@ -296,12 +319,13 @@ class Speech():
         # write back transcript if present
         if 'results' not in sync_response.keys():
             LOG.info(
-                'recognize_sync: %s: No results. Transcript not returned.', self.file_id)
+                'recognize_sync: %s: No transcript returned.', self.file_id)
         else:
             result_list = sync_response['results']
-            with open(self.trans_sync, 'w') as w:
+            with open(self.trans_sync, 'w') as file_out:
                 for item in result_list:
-                    w.write(item['alternatives'][0]['transcript'] + '\n')
+                    file_out.write(item['alternatives'][0]
+                                   ['transcript'] + '\n')
             LOG.info(
                 'recognize_sync: %s: Transcript written.', self.file_id)
 
@@ -324,21 +348,22 @@ class Speech():
         }
         async_response = SPEECH.asyncrecognize(body=request_body).execute()
         operation_id = async_response['name']
-        LOG.info('recognize_async: %s: Request URL: https://speech.googleapis.com/v1beta1/operations/%s?alt=json&key=%s',
-                 self.file_id, operation_id, API_KEY)
+        LOG.info('recognize_async: %s', self.file_id)
+        LOG.info('Request URL: %s%s?alt=json&key=%s',
+                 OP_BASE_URL, operation_id, API_KEY)
 
         # periodically poll for response up until a limit
         # if there is, write back to file
         time.sleep(self.get_duration())
-        for retries in range(self.async_max_retries):
+        for _ in range(self.async_max_retries):
             operation = OPERATIONS.get(name=operation_id).execute()
             if 'done' in operation.keys():
                 async_response = operation['response']
                 result_list = async_response['results']
-                with open(self.trans_async, 'w') as w:
+                with open(self.trans_async, 'w') as file_out:
                     for item in result_list:
-                        w.write(item['alternatives'][0]
-                                ['transcript'] + '\n')
+                        file_out.write(item['alternatives'][0]
+                                       ['transcript'] + '\n')
                 LOG.info(
                     'recognize_async: %s: Transcript written.', self.file_id)
                 return self.file_id
@@ -348,120 +373,118 @@ class Speech():
 
 def sync_pipeline(file_id):
     """Synchronous processing pipeline for file_id."""
-    s = Speech(file_id)
+    speech_ = Speech(file_id)
+
+    # check for completion
+    # if not start the process
+    if speech_.has_trans_sync():
+        LOG.info('recognize_sync: %s: Transcript exists.', file_id)
+        return file_id
 
     # convert, check for raw and resampled
-    if not s.has_raw():
-        LOG.info(
-            'convert: %s: Raw file does not exist. No further action.', file_id)
+    if not speech_.has_raw():
+        LOG.info('convert: %s: Raw file does not exist. Exiting.', file_id)
         return None
-    elif s.has_resampled():
-        LOG.info(
-            'convert: %s: Resampled file exists. No further action.', file_id)
+    elif speech_.has_resampled():
+        LOG.info('convert: %s: Resampled file exists.', file_id)
     else:
-        s.convert()
+        speech_.convert()
 
-    # recognize_sync, check for duration and transcript
-    if s.get_duration() >= 60:
+    # recognize_sync, check for duration
+    if speech_.get_duration() >= 60:
         LOG.info(
-            'recognize_sync: %s: File longer than 1 minute. Will not recognize.', file_id)
+            'recognize_sync: %s: File longer than 1 minute. Exiting.', file_id)
         return None
-    elif s.has_trans_sync():
-        LOG.info(
-            'recognize_sync: %s: Transcript exists. No further action.', file_id)
     else:
-        s.recognize_sync()
+        speech_.recognize_sync()
 
     return file_id
 
 
 def async_pipeline(file_id):
     """Asynchronous processing pipeline for file_id."""
-    s = Speech(file_id)
+    speech_ = Speech(file_id)
+
+    # check for completion
+    # if not start the process
+    if speech_.has_trans_async():
+        LOG.info('recognize_async: %s: Transcript exists.', file_id)
+        return file_id
 
     # convert, check for raw and resampled
-    if not s.has_raw():
-        LOG.info(
-            'convert: %s: Raw file does not exist. No further action.', file_id)
+    if not speech_.has_raw():
+        LOG.info('convert: %s: Raw file does not exist. Exiting.', file_id)
         return None
-    elif s.has_resampled():
-        LOG.info(
-            'convert: %s: Resampled file exists. No further action.', file_id)
+    elif speech_.has_resampled():
+        LOG.info('convert: %s: Resampled file exists.', file_id)
     else:
-        s.convert()
+        speech_.convert()
 
     # upload, check for duration
-    if s.get_duration() >= 4800:
-        LOG.info(
-            'upload: %s: File longer than 1 minute. Will not recognize.', file_id)
+    if speech_.get_duration() >= 4800:
+        LOG.info('upload: %s: File longer than 1 minute. Exiting.', file_id)
         return None
     else:
-        s.upload()
+        speech_.upload()
 
-    # recognize_async, check for transcript
-    if s.has_trans_async():
-        LOG.info(
-            'recognize_async: %s: Transcript exists. No further action.', file_id)
-    else:
-        s.recognize_async()
+    # recognize_async
+    speech_.recognize_async()
 
     return file_id
 
 
 def diarize_pipeline(file_id):
     """Synchronous processing pipeline with diarization for file_id."""
-    s = Speech(file_id)
+    speech_ = Speech(file_id)
 
     # check for completion
     # if not start the process
-    if s.has_trans_diarize() and s.has_textgrid():
+    if speech_.has_trans_diarize() and speech_.has_textgrid():
         LOG.info(
-            'write_transcript: %s: Transcript and TextGrid exists. No further action.', file_id)
+            'write_transcript: %s: Transcript and TextGrid exists.', file_id)
         return file_id
 
     # convert, check for raw and resampled
-    if not s.has_raw():
-        LOG.info(
-            'convert: %s: Raw file does not exist. No further action.', file_id)
+    if not speech_.has_raw():
+        LOG.info('convert: %s: Raw file does not exist. Exiting.', file_id)
         return None
-    elif s.has_resampled():
-        LOG.info(
-            'convert: %s: Resampled file exists. No further action.', file_id)
+    elif speech_.has_resampled():
+        LOG.info('convert: %s: Resampled file exists.', file_id)
     else:
-        s.convert()
+        speech_.convert()
 
     # diarize, check for seg
-    if s.has_diarize():
-        LOG.info(
-            'diarize: %s: Diarization file exists. No further action.', file_id)
+    if speech_.has_diarize():
+        LOG.info('diarize: %s: Diarization file exists.', file_id)
     else:
-        s.diarize()
+        speech_.diarize()
 
     # seg_to_dict, check for temp
-    if s.has_temp_seg_to_dict():
+    if speech_.has_temp_seg_to_dict():
         LOG.info('seg_to_dict: %s: Previously completed.', file_id)
     else:
-        s.seg_to_dict()
+        speech_.seg_to_dict()
 
     # split_resampled, check for temp
-    if s.has_temp_dict_to_wav():
+    if speech_.has_temp_dict_to_wav():
         LOG.info('split_resampled: %s: Previously completed.', file_id)
     else:
-        s.split_resampled()
+        speech_.split_resampled()
 
     # recognize_diarize, check for temp
-    if s.has_temp_wav_to_trans():
+    if speech_.has_temp_wav_to_trans():
         LOG.info('recognize_diarize: %s: Previously completed.', file_id)
     else:
-        s.recognize_diarize()
+        speech_.recognize_diarize()
 
-    # write transcript
-    s.write_transcript()
+    # write_transcript
+    speech_.write_transcript()
 
     return file_id
 
 
 def workflow(method='diarize'):
+    """Workflow for /data."""
     id_list = sorted([file_id for file_id in os.listdir(DATA_DIR)
                       if os.path.isdir(os.path.join(DATA_DIR, file_id))])
     if method not in ['diarize', 'sync', 'async']:
