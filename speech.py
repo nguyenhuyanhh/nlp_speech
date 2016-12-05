@@ -16,6 +16,8 @@ from oauth2client.service_account import ServiceAccountCredentials
 # initialize paths
 CUR_DIR = os.path.dirname(os.path.realpath(__name__))
 DATA_DIR = os.path.join(CUR_DIR, 'data/')
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
 LIUM_PATH = os.path.join(CUR_DIR, 'lium/LIUM_SpkDiarization-8.4.1.jar')
 
 # initialize credentials and google apis
