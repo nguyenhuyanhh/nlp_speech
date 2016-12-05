@@ -494,7 +494,7 @@ def workflow(method='diarize'):
     LOG.info('Workflow completed.')
 
 if __name__ == '__main__':
-    if sys.argv[1] in ['-d', '--default', '--diarize']:
+    if len(sys.argv) == 1 or sys.argv[1] in ['-d', '--default', '--diarize']:
         workflow(method='diarize')
     elif sys.argv[1] in ['-s', '--sync']:
         workflow(method='sync')
