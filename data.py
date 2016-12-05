@@ -24,7 +24,7 @@ def import_folder(path):
     for file_ in os.listdir(path):
         if os.path.splitext(file_)[1] in AUDIO_EXTS:
             file_path = os.path.join(path, file_)
-            file_id = slugify(file_)
+            file_id = slugify(os.path.splitext(file_)[0])
             working_dir = os.path.join(DATA_DIR, file_id + '/')
             raw_dir = os.path.join(working_dir, 'raw/')
             resampled_dir = os.path.join(working_dir, 'resampled/')
