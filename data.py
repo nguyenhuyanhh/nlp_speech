@@ -128,15 +128,15 @@ def stats(path):
 
     # get list of folders that conforms to /data structure
     key = set(['raw', 'resampled', 'diarization', 'transcript'])
-    completed_dirs = set()
+    completed_dirs = dict()
     for root, dirs, _ in os.walk(path):
         if key.issubset(dirs):
-            completed_dirs.add(root)
+            file_id = os.path.basename(os.path.normpath(root))
+            completed_dirs[file_id] = root
 
     # update if id not in stats.json
-    for dir_ in completed_dirs:
-        file_id = os.path.basename(os.path.normpath(dir_))
-        resampled_dir = os.path.join(dir_, 'resampled/')
+    for file_id, root in completed_dirs.items():
+        resampled_dir = os.path.join(root, 'resampled/')
         if file_id not in stats.keys():
             if len(os.listdir(resampled_dir)) == 1:
                 resampled_file = os.path.join(
@@ -145,11 +145,13 @@ def stats(path):
                 duration = Decimal(file_.getnframes()) / file_.getframerate()
                 file_.close()
                 stats[file_id] = str(duration)
+                LOG.info('Updated %s', file_id)
 
     # calculate and convert to human readable times
     time = Decimal(0)
-    for _, dur_ in stats.items():
-        time += Decimal(dur_)
+    for id_, dur_ in stats.items():
+        if id_ in completed_dirs.keys():
+            time += Decimal(dur_)
     hours = int(time / 3600)
     time -= hours * 3600
     minutes = int(time / 60)
