@@ -156,7 +156,7 @@ class Speech():
         fnull = open(os.devnull, 'w')
         args = ['java', '-Xmx2048m', '-jar', LIUM_PATH, '--fInputMask=' +
                 self.resampled_file, '--sOutputMask=' + self.diarize_file,
-                self.file_id]
+                '--doCEClustering', self.file_id]
         subprocess.call(args, stdout=fnull, stderr=subprocess.STDOUT)
         if self.has_diarize():
             LOG.info('diarize: %s: Diarization file written.', self.file_id)
