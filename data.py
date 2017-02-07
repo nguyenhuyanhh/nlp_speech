@@ -1,5 +1,6 @@
 """Data operations."""
 
+import json
 import logging
 import os
 import shutil
@@ -117,6 +118,14 @@ def stats(path):
     Return some statistics for the folder.
     Useful for completion statistics.
     """
+    # initialize stats.json
+    stats_file = os.path.join(CUR_DIR, 'stats.json')
+    if not os.path.exists(stats_file):
+        stats = dict()
+    else:
+        with open(stats_file, 'r') as file_:
+            stats = json.load(file_)
+
     # get list of folders that conforms to /data structure
     key = set(['raw', 'resampled', 'diarization', 'transcript'])
     completed_dirs = set()
@@ -124,27 +133,34 @@ def stats(path):
         if key.issubset(dirs):
             completed_dirs.add(root)
 
-    # get total time and no of file_ids processed
-    count = 0
-    time = Decimal(0)
+    # update if id not in stats.json
     for dir_ in completed_dirs:
+        file_id = os.path.basename(os.path.normpath(dir_))
         resampled_dir = os.path.join(dir_, 'resampled/')
-        if len(os.listdir(resampled_dir)) == 1:
-            resampled_file = os.path.join(
-                resampled_dir, os.listdir(resampled_dir)[0])
-            file_ = wave.open(resampled_file, 'r')
-            time += Decimal(file_.getnframes()) / file_.getframerate()
-            file_.close()
-            count += 1
+        if file_id not in stats.keys():
+            if len(os.listdir(resampled_dir)) == 1:
+                resampled_file = os.path.join(
+                    resampled_dir, os.listdir(resampled_dir)[0])
+                file_ = wave.open(resampled_file, 'r')
+                duration = Decimal(file_.getnframes()) / file_.getframerate()
+                file_.close()
+                stats[file_id] = str(duration)
 
-    # convert to human readable times
+    # calculate and convert to human readable times
+    time = Decimal(0)
+    for _, dur_ in stats.items():
+        time += Decimal(dur_)
     hours = int(time / 3600)
     time -= hours * 3600
     minutes = int(time / 60)
     seconds = time - minutes * 60
 
+    # update stats.json
+    with open(stats_file, 'w') as file_out:
+        json.dump(stats, file_out, sort_keys=True, indent=4)
+
     LOG.info('Processed %s files, total time %s hours %s minutes %s seconds.',
-             count, hours, minutes, seconds)
+             len(stats), hours, minutes, seconds)
 
 
 def print_completed(path):

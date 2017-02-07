@@ -11,3 +11,6 @@ data*/
 
 # VSCode
 .vscode/
+
+# Completion stats
+stats.json
