@@ -162,7 +162,7 @@ def stats(path):
         json.dump(stats, file_out, sort_keys=True, indent=4)
 
     LOG.info('Processed %s files, total time %s hours %s minutes %s seconds.',
-             len(stats), hours, minutes, seconds)
+             len(completed_dirs), hours, minutes, seconds)
 
 
 def print_completed(path):
